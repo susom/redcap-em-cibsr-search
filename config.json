@@ -27,23 +27,8 @@
 
   "links": {
     "control-center": [
-      {
-        "name": "Global OSF Config",
-        "icon": "gear",
-        "url": "config_editor"
-      }
     ],
     "project": [
-      {
-        "name": "OSF Config",
-        "icon": "gear",
-        "url": "config_editor"
-      },
-      {
-        "name": "OSF Test",
-        "icon": "gear",
-        "url": "test.php"
-      },
       {
         "name": "OSF Intake",
         "icon": "gear",

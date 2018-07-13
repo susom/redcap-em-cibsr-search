@@ -30,7 +30,7 @@
     ],
     "project": [
       {
-        "name": "OSF Intake",
+        "name": "CIBSR Search",
         "icon": "gear",
         "url": "intake.php"
       }

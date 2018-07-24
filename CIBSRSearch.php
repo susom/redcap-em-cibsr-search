@@ -1,48 +1,49 @@
 <?php
 namespace Stanford\CIBSRSearch;
 
-
-include_once "Util.php";
-include_once "classes/DataMirror.php";
-
-use Psr\Log\NullLogger;
 use REDCap;
 use Project;
 use Plugin;
 
 
-/**
- * Class
- *
- * https://uit.stanford.edu/developers/apis/person
- *
- * @package Stanford\SPL
- */
-class CIBSRSearch extends \ExternalModules\AbstractExternalModule
-{
+class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
-    public function redcap_survey_page_top() {
-        Plugin::log(__METHOD__);
-    }
+    public function searchPerson($search_fields) {
 
-
-
-    public function redcap_survey_complete ($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash, $response_id = NULL, $repeat_instance = 1 ) {
-        Plugin::log(__METHOD__);
-
-        if ($instrument == 'demographics') {
-            Plugin::log("Demographics completed. Redirecting to household screen.");
-
+        //todo: use filter to get the list or use SQL??
+        $filter = "";
+        Plugin::log($search_fields, "DEBUG", "serach fields");
+        if (empty($search_fields)) {
+            $filter = null;
+        } else {
+            // Build array of fields and search filter
+            $filters = array();
+            foreach ($search_fields as $key => $v) {
+                Plugin::log($key, "DEBUG", "KEY FOR ".$v. ' empty: ' . empty($v));
+                if (!empty($v)) {
+                    $filters[] = "([" . $key . "] = '" . $v . "')";
+                }
+            }
+            $filter = implode(" AND ", $filters);
         }
 
+        Plugin::log($filter, "Filter");
+
+        //which fields do we want returned
+        $get_data = array_keys($search_fields);
+        $get_data[] = REDcap::getRecordIdField();
+
+        //also add the Household ID so they can see its status
+        $get_data[] = 'house_id';
+
+        //Plugin::log($get_data, "DEBUG", "GET DATA");
+        // Load the clinicians
+        $q = REDCap::getData('json', NULL,$get_data, NULL, NULL, FALSE, FALSE, FALSE, $filter);
+        $records = json_decode($q, true);
+
+        Plugin::log($records, "Records");
+        return $records;
     }
-
-    public function redcap_save_record($project_id, $record, $instrument, $event_id, $group_id, $survey_hash, $response_id, $repeat_instance) {
-        Plugin::log(__METHOD__);
-
-    }
-
-
 
 
     private static function getNextId($pid, $id_field, $event_id, $prefix = '', $padding = false) {
@@ -79,52 +80,39 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule
         return $id;
     }
 
+    public function renderFoundTable($data) {
 
+        $html = '<div class="col-md-12">';
+        $html .= '<hr><hr><h4>Search Result</h4>';
+        $html .= '<p>We have found these potential matches for your search.<br>
+                     If none are correct, please click the "Create a new CIBSR ID button" to create a new ID.';
+        $html .= 'Count found: '.count($data);
+        $html .= '</p>';
+//                   $module->renderSearchTable($search_results);
 
-    public function searchPerson($search_fields) {
+        $html .= '</div>';
+        return $html;
+    }
 
-        //todo: use filter to get the list or use SQL??
-        $filter = "";
-        Plugin::log($search_fields, "DEBUG", "serach fields");
-        if (empty($search_fields)) {
-            $filter = null;
-        } else {
-            // Build array of fields and search filter
-            $filters = array();
-            foreach ($search_fields as $key => $v) {
-                Plugin::log($key, "DEBUG", "KEY FOR ".$v. ' empty: ' . empty($v));
-                if (!empty($v)) {
-                    $filters[] = "([" . $key . "] = '" . $v . "')";
-                }
-            }
-            $filter = implode(" AND ", $filters);
-        }
+    public function renderNoneFoundMessage() {
+        $html = '<div class="col-md-12">
+                    <p>
+                        There were no persons found with the specified search criteria.
 
-        Plugin::log($filter, "Filter");
+                    </p>
 
-        //which fields do we want returned
-        $get_data = array_keys($search_fields);
-        $get_data[] = REDcap::getRecordIdField();
+                </div>';
 
-        //also add the Household ID so they can see its status
-        $get_data[] = 'house_id';
-
-        //Plugin::log($get_data, "DEBUG", "GET DATA");
-        // Load the clinicians
-        $q = REDCap::getData('json', NULL,$get_data, NULL, NULL, FALSE, FALSE, FALSE, $filter);
-        $records = json_decode($q, true);
-
-        //Plugin::log($records, "Records");
-        return $records;
+        return $html;
     }
 
 
     function renderSearchTable($data) {
-        $header = array("CIBSR ID", "First Name", "Last Name", "Gender", "Date of Birth", "Household ID",  "Select This ID");
+        $header = array("CIBSR ID", "First Name", "Last Name", "Gender", "Date of Birth", "Household ID");
         $data2 = array(
             array(
-            "participant_id" =>1,
-            "test"      => "foo"
+                "participant_id" =>1,
+                "test"      => "foo"
             ),
             array(
                 "participant_id" =>2,
@@ -133,7 +121,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule
         );
 
         // Render table
-        $grid = '<table id="search_table" class="table table-striped table-bordered table-condensed" cellspacing="0" width="95%">';
+        $grid = '<table id="search_table" name="search_table" class="table table-striped table-bordered table-condensed" cellspacing="0" width="95%">';
         $grid .= $this->renderHeaderRow($header, 'thead');
         $grid .= $this->renderSummaryTableRows($data);
         $grid .= '</table>';
@@ -163,6 +151,12 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule
 
 
                 switch ($col_key) {
+                    case "cibsr_id":
+                        $this_id = $this_row[REDCap::getRecordIdField()];
+                        $house_id = $this_row['house_id'];
+                        $rows .= "<td><button type='button' class='btn btn-info select_id' data-id='$this_id' data-houseid='$house_id'>$this_id</button></td>";
+                        //$rows .= "<td><button type='button' class='btn btn-info select_id' data-toggle='modal' data-target='#reportModal' data-id='$this_id' data-houseid='$house_id'>$this_id</button></td>";
+                        break;
                     case "sex":
                         switch ($this_col) {
                             case "0":
@@ -207,25 +201,26 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule
                         </div> ";
                         }
                         // SurveyDashboard::log($this_id, "THIS ID");
+
                         $rows .= '<td>' . implode("",$items) . '<i id="editClinicianListButton_'.$this_id.'" class=\' editClinicianListButton glyphicon glyphicon-plus\' value="'.$this_id.'"  name="'.$this_id.'" style="float: right; width: 32px;"></i></td>';
 
                         break;
 
-                       default:
+                    default:
                         $rows .= '<td>' . $this_col . '</td>';
 
                 }
             }
-            $this_id = $this_row[REDCap::getRecordIdField()];
-            $house_id = $this_row['house_id'];
+            //$this_id = $this_row[REDCap::getRecordIdField()];
+            //$house_id = $this_row['house_id'];
 
-            $rows .= "<td><button class='select_id' data-id='$this_id' data-houseid='$house_id' >$this_id</button></td>";
+            //$rows .= "<td><button type='button' class='btn btn-info select_id' data-toggle='modal' data-target='#reportModal' data-id='$this_id' data-houseid='$house_id'>$this_id</button></td>";
+            //$rows .= "<td><button class='select_id' data-id='$this_id' data-houseid='$house_id' >$this_id</button></td>";
 
             $rows .= '</tr>';
         }
         return $rows;
     }
-
 
 
     public function setNewUser($data) {

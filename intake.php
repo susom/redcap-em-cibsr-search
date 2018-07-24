@@ -30,6 +30,8 @@ $data = array(
     "sex" => $gender
 );
 
+Plugin::log($_POST, "DEBUG", "POST");
+
 // IF POST, PROCESS "SUBMISSION"
 if (!empty($_POST['search_participant'])) {
     Plugin::log($_POST, "DEBUG", "GET STARTED");
@@ -117,11 +119,14 @@ if (!empty($_POST['resume_existing'])) {
         Plugin::log($survey_link, "DEBUG", "Redirecting to SURVEY_LINK: " . $id . "in instrument " . $instrument);
         //redirect to filtering survey
         redirect($survey_link);
+        exit;
     }
 }
 
 if (!empty($_POST['search_family'])) {
     //check if this user exists already
+    Plugin::log($data, "DEBUG", "SEARCHING FOR FAMILY");
+
     $h_search_results = $module->searchPerson($data);
 
 
@@ -129,7 +134,8 @@ if (!empty($_POST['search_family'])) {
         //display results so they can select one
         Plugin::log($h_search_results, "DEBUG", "SEARCH RESULTS FOUNDD");
 
-        $result = array('result' => 'success');
+        $result = array('result' => 'success',
+                        'data' => $h_search_results);
 
         header('Content-Type: application/json');
         print json_encode($result);
@@ -242,8 +248,9 @@ if (!empty($_POST['search_family'])) {
     <div id=created></div>
 
 
-    <?php Plugin::log(count($search_results), "DEBUG", "COUNT OF SEARCH RESULTS?"); ?>
+
     <?php if (isset($search_results)) { ?>
+        <?php Plugin::log(count($search_results), "DEBUG", "COUNT OF SEARCH RESULTS?"); ?>
         <?php if (count($search_results) > 0) { ?>
             <div class="col-md-12">
 
@@ -441,8 +448,11 @@ if (!empty($_POST['search_family'])) {
                 formValues[field.name] = field.value;
             });
 
+            formValues['search_family'] = true;
+
             console.log("familysearch: in submit" + formValues);
             $.ajax({ // create an AJAX call...
+
                 data: formValues, // get the form data
                 method: "POST" // GET or POST
             })
@@ -460,8 +470,8 @@ if (!empty($_POST['search_family'])) {
                     }
 
                 })
-                .fail(function () {
-                    alert("error");
+                .fail(function (data) {
+                    alert("error;  failed on family search.");
                 })
                 .always(function () {
                     //saveBtn.html(saveBtnHtml);

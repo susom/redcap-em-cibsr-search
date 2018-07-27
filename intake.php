@@ -4,13 +4,6 @@ namespace Stanford\CIBSRSearch;
 
 use Plugin;
 use REDCap;
-//
-//$fname = "foo";
-//$lname = "foo";
-//$dob = '2001-06-06';
-//$gender = 1;
-
-
 
 $search_results = null;
 $h_search_results = null;
@@ -27,42 +20,37 @@ $data = array(
     "first_name" => $fname,
     "last_name" => $lname,
     "dob" => $dob,
-    "sex" => $gender
+    "sex" => $_POST["sex"] //$gender,  //loses values of 0
 );
 
 Plugin::log($_POST, "DEBUG", "POST");
 
 // IF POST, PROCESS "SUBMISSION"
 if (!empty($_POST['search_participant'])) {
-    Plugin::log($_POST, "DEBUG", "GET STARTED");
+    Plugin::log($data, "DEBUG", "DATA GET STARTED");
 
-    //check if this user exists already
-    $search_results = $module->searchPerson($data);
+    //for security reasons, if either name field is empty, return a fail with an alert
+    if (empty($fname) || empty($lname)) {
+        $result = array(
+            'result' => 'warn',
+            'status' => 'incomplete',
+            'msg' => 'Please enter names to complete the search.'
+        );
+    } else {
 
-
-    if (count($search_results) > 0) {
-        //display results so they can select one
-        Plugin::log($search_results, "DEBUG", "SEARCH RESULTS FOUNDD");
-        $return = $module->renderFoundTable($search_results);
+        //check if this user exists already
+        $search_results = $module->searchPerson($data);
+        //Plugin::log($search_results, "DEBUG", "SEARCH RESULTS FOUNDD");
 
         $result = array(
             'result' => 'success',
-            'html' => $search_results);
+            'data' => $search_results);
 
-
-    } else {
-        // no results so show button to add a new record
-        Plugin::log($search_results, "DEBUG", "NO SEARCH RESULTS FOUNDD");
-        $return = $module->renderNoneFoundMessage();
-
-        $result = array(
-            'result' => 'fail',
-            'html' => $search_results);
     }
 
-//    header('Content-Type: application/json');
-//    print json_encode($result);
-//    exit();
+    header('Content-Type: application/json');
+    print json_encode($result);
+    exit();
 
 
 }
@@ -70,27 +58,9 @@ if (!empty($_POST['search_participant'])) {
 if (!empty($_POST['create_new_user'])) {
     Plugin::log($_POST, "DEBUG", "CREATE NEW USER");
 
-    /**
-     * $fname        = (!empty($_POST["firstname"])      ? $_POST["firstname"] : null ) ;
-     * $lname            = (!empty($_POST["lastname"])        ? $_POST["lastname"] : null) ;
-     * $dob            = (!empty($_POST["dob"])            ? $_POST["dob"] : null) ;
-     * $gender        = (!empty($_POST["sex"])            ? $_POST["sex"] : null) ;
-     *
-     * $foo = ($gender === 0) ? 'checked="checked"' : '';
-     * Plugin::log($gender, "DEBUG", "FOO IS ".$foo);
-     *
-     * $data = array(
-     * "first_name"     =>$fname,
-     * "last_name"      =>$lname,
-     * "dob"            =>$dob,
-     * "sex"            =>$gender,
-     * );
-     **/
-
     //saveData into new record
     $next_id = $module->setNewUser($data);
     Plugin::log($next_id, "DEBUG", "NEXT_ID ");
-
 
     //check if household id is populated
     //if not populated then present screen to
@@ -101,8 +71,13 @@ if (!empty($_POST['create_new_user'])) {
         $survey_link = REDCap::getSurveyLink($next_id, $instrument);
 
         Plugin::log($survey_link, "DEBUG", "SURVEY_LINK: " . $next_id . "in instrument" . $instrument);
-        //redirect to filtering survey
-        redirect($survey_link);
+
+        $result = array('result' => 'success',
+                        'link' => $survey_link);
+        header('Content-Type: application/json');
+        print json_encode($result);
+        exit();
+
     } else {
         //the record was not saved, report error to REDCap logging?
 
@@ -118,8 +93,42 @@ if (!empty($_POST['resume_existing'])) {
 
         Plugin::log($survey_link, "DEBUG", "Redirecting to SURVEY_LINK: " . $id . "in instrument " . $instrument);
         //redirect to filtering survey
-        redirect($survey_link);
-        exit;
+
+        $result = array(
+            'result' => 'success',
+            'link' => $survey_link);
+
+        header('Content-Type: application/json');
+        print json_encode($result);
+        exit();
+    }
+}
+
+if (!empty($_POST['save_houseid'])) {
+    $cibsr_id = (!empty($_POST["cibsr_id"]) ? $_POST["cibsr_id"] : null);
+    $houseid = (!empty($_POST["houseid"]) ? $_POST["houseid"] : null);
+
+
+    if ($cibsr_id && $houseid) {
+
+        $data = array(
+            'cibsr_id' => $cibsr_id,
+            'house_id' => $houseid);
+
+        $houseid_status = REDCap::saveData('json', json_encode(array($data)));
+
+        //setup the survey
+        $instrument = 'demographics';  //todo: hardcoded?
+        $survey_link = REDCap::getSurveyLink($cibsr_id, $instrument);
+        Plugin::log($survey_link, "DEBUG", "SURVEY_LINK: " . $cibsr_id . "in instrument" . $instrument);
+
+        $result = array('result' => 'success',
+            'status' => $houseid_status,
+            'link' => $survey_link);
+        header('Content-Type: application/json');
+        print json_encode($result);
+        exit();
+
     }
 }
 
@@ -127,31 +136,83 @@ if (!empty($_POST['search_family'])) {
     //check if this user exists already
     Plugin::log($data, "DEBUG", "SEARCHING FOR FAMILY");
 
-    $h_search_results = $module->searchPerson($data);
+//for security reasons, if either name field is empty, return a fail with an alert
+    if (empty($fname) || empty($lname)) {
+
+        $result = array(
+            'result' => 'warn',
+            'status' => 'incomplete',
+            'msg' => 'Please enter names to complete the search.'
+        );
+    } else {
+
+        //for this search, only return values which have houseIds
+        $h_search_results = $module->searchPerson($data, "house_id");
 
 
-    if (count($h_search_results) > 0) {
-        //display results so they can select one
         Plugin::log($h_search_results, "DEBUG", "SEARCH RESULTS FOUNDD");
 
-        $result = array('result' => 'success',
-                        'data' => $h_search_results);
+        $result = array(
+            'result' => 'success',
+            'data' => $h_search_results);
 
-        header('Content-Type: application/json');
-        print json_encode($result);
-    } else {
-        // no results so show button to add a new record
-        Plugin::log($h_search_results, "DEBUG", "NO SEARCH RESULTS FOUNDD");
     }
 
-    //Plugin::log($search_results, "DEBUG", "SEARCH RESULTS");
-
-    //saveData into new record
-    //$next_id = $module->setNewUser($data);
-    $next_id = false;
+    header('Content-Type: application/json');
+    print json_encode($result);
+    exit();
 
 }
 
+if (!empty($_POST['create_houseid'])) {
+    //reuse the passed in modal_cibsr_id to add a new houseid and redirect to survey link
+    $cibsr_id = (!empty($_POST["modal_cibsr_id"]) ? $_POST["modal_cibsr_id"] : null);
+
+    //get new house_id
+    //$next_id = self::getNextId($Proj->project_id, REDCap::getRecordIdField(),$Proj->firstEventId);
+    $houseid = CIBSRSearch::getNextHouseId($project_id, 'house_id', $Proj->firstEventId);
+    Plugin::log($houseid, "DEBUG", "NEW HOUSE ID");
+
+
+    if (!$cibsr_id) {
+
+        //probably coming in from the new CIBSRID
+        $data = array(
+            'house_id' => $houseid,
+            'first_name' =>(!empty($_POST["modal_firstname"]) ? $_POST["modal_firstname"] : null),
+            'last_name' =>(!empty($_POST["modal_lastname"]) ? $_POST["modal_lastname"] : null),
+            'dob' =>(!empty($_POST["modal_dob"]) ? $_POST["modal_dob"] : null),
+            'sex' =>(!empty($_POST["modal_sex"]) ? $_POST["modal_sex"] : null)
+        );
+
+        //probably coming in from Create New, so create new ID
+        $cibsr_id = $module->setNewUser($data);
+
+    } else {
+        $data = array(
+            'cibsr_id' => $cibsr_id,
+            'house_id' => $houseid);
+    }
+
+    Plugin::log($data, "DEBUG", "ABOUT TO SAVE THIS DATA FOR HOUSE ID");
+
+    $houseid_status = REDCap::saveData('json', json_encode(array($data)));
+
+    //setup the survey
+    $instrument = 'demographics';  //todo: hardcoded?
+    $survey_link = REDCap::getSurveyLink($cibsr_id, $instrument);
+
+    //Plugin::log($survey_link, "DEBUG", "SURVEY_LINK: " . $cibsr_id . "in instrument" . $instrument);
+
+    $result = array('result' => 'success',
+            'status' => $houseid_status,
+            'link' => $survey_link);
+
+    header('Content-Type: application/json');
+    print json_encode($result);
+    exit();
+
+}
 
 ?><!DOCTYPE html>
 <html lang="en">
@@ -169,20 +230,26 @@ if (!empty($_POST['search_family'])) {
     <!--script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
     -->
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.js"></script>
 
-    <link rel="stylesheet"
-          href="<?php echo APP_PATH_WEBROOT . DS . "Resources/css/fontawesome/css/fontawesome-all.min.css" ?>"
-          type="text/css"/>
     <link rel="stylesheet" href="<?php echo $module->getUrl('css/bootstrap.min.css', true, true) ?>" type="text/css"/>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css"  type="text/css"/>
+    <link rel="stylesheet" href="<?php echo APP_PATH_WEBROOT . DS . "Resources/css/fontawesome/css/fontawesome-all.min.css" ?>" type="text/css" />
 
     <script src="<?php echo $module->getUrl('/js/jquery.min.js', true, true) ?>"></script>
     <script src="<?php echo $module->getUrl('/js/bootstrap.min.js', true, true) ?>"></script>
+
 
     <!-- Bootstrap Date-Picker  -->
     <script type="text/javascript"
             src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/js/bootstrap-datepicker.min.js"></script>
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/css/bootstrap-datepicker3.css"/>
+
+    <script type="text/javascript"
+            src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+
+
 </head>
 <body>
 <div>
@@ -206,12 +273,12 @@ if (!empty($_POST['search_family'])) {
                     <label for="gender" class="control-label col-sm-1">Gender:</label>
                     <div class="col-sm-2">
                         <label><input name="sex" type="radio"
-                                      value="0" <?php echo ($gender == 0) ? 'checked="checked"' : ''; ?>>
+                                      value="0" <?php echo ($gender == "0") ? 'checked="checked"' : ''; ?>>
                             Male</label><br>
                         <label><input name="sex" type="radio"
-                                      value="1" <?php echo ($gender == 1) ? 'checked="checked"' : ''; ?>> Female</label><br>
+                                      value="1" <?php echo ($gender == "1") ? 'checked="checked"' : ''; ?>> Female</label><br>
                         <label><input name="sex" type="radio"
-                                      value="2" <?php echo ($gender == 2) ? 'checked="checked"' : ''; ?>>
+                                      value="2" <?php echo ($gender == "2") ? 'checked="checked"' : ''; ?>>
                             Phantom</label>
                     </div>
 
@@ -232,60 +299,36 @@ if (!empty($_POST['search_family'])) {
                                 name="search_participant" value="true">
                             Search
                         </button>
-                        <button class="btn btn-primary" name="create_new_user" value="1">Create a new CIBSR ID</button>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <span class="control-label col-sm-12"></span>
-                    <div class="col-sm-12">
-
+                        <button class="btn btn-primary" type="submit" name="create_new_user" id="create_new_user"value="true">Create a new CIBSR ID</button>
                     </div>
                 </div>
             </div>
         </form>
     </div>
-    <div id=created></div>
 
 
+    <div id=created>
+        <div style="display:none;" id="some_found">
+            <h4>Search Result</h4>
+            <p>
+                We have found these potential matches for your search.<br>
+                If none are correct, please click the 'Create a new CIBSR ID button' to create a new ID.
+            </p>
 
-    <?php if (isset($search_results)) { ?>
-        <?php Plugin::log(count($search_results), "DEBUG", "COUNT OF SEARCH RESULTS?"); ?>
-        <?php if (count($search_results) > 0) { ?>
-            <div class="col-md-12">
+        </div>
+        <div style="display:none;" id="none_found">
+            <p>
+            There were no persons found with the specified search criteria.
+            </p>
+        </div>
 
-                <hr>
-                <hr>
-                <h4>Search Result</h4>
-                <p>
+        <table id="search_table" class="display" width="100%">
+            <thead>
+            </thead>
+        </table>
+    </div>
+    </form>
 
-                    We have found these potential matches for your search.<br>
-                    If none are correct, please click the 'Create a new CIBSR ID button' to create a new ID.
-
-                    <?php echo "Count found: " ?>
-                    <?php echo(count($search_results)) ?>
-
-                </p>
-                <p>
-
-                </p>
-                <?php print $module->renderSearchTable($search_results) ?>
-
-            </div>
-        <?php } else { ?>
-            <div class="col-md-12">
-                <p>
-                    There were no persons found with the specified search criteria.
-
-                </p>
-
-            </div>
-        <?php } ?>
-        <!-- <form method="POST" id="form0" action="">  -->
-
-        </form>
-
-    <?php } ?>
 
     <!-- Modal -->
     <div class="modal modal-xl fade" id="reportModal" role="dialog" aria-labelledby="reportModalLabel"
@@ -302,6 +345,11 @@ if (!empty($_POST['search_family'])) {
                     </div>
                     <div class="modal-body">
                         <div class="panel-body" id="set_household_modal">
+                            <input type="hidden" name="modal_cibsr_id" id="modal_cibsr_id"/>
+                            <input type="hidden" name="modal_firstname" id="modal_firstname"/>
+                            <input type="hidden" name="modal_lastname" id="modal_lastname"/>
+                            <input type="hidden" name="modal_sex" id="modal_sex"/>
+                            <input type="hidden" name="modal_dob" id="modal_dob"/>
 
                             <p class="control-label col-sm-12">Household ID has not yet been set for this
                                 participant.</p>
@@ -312,8 +360,6 @@ if (!empty($_POST['search_family'])) {
                                     <label for="name" class="control-label col-sm-6">Name:</label>
                                     <label for="gender" class="control-label lb-sm col-sm-3">Gender:</label>
                                     <label for="dob" class="control-label col-sm-3">Date of Birth:</label>
-
-
                                 </div>
                                 <div class="clearfix row">
                                     <div class="col-sm-3">
@@ -323,43 +369,26 @@ if (!empty($_POST['search_family'])) {
                                     <div class="col-sm-3">
                                         <input type="text" class="form-control" name="lastname" id="lastname"
                                                placeholder="Last Name">
-
                                     </div>
-
                                     <div class="col-sm-3">
-                                        <label><input name="sex" type="radio">
-
-                                            Male</label><br>
-                                        <label><input name="sex" type="radio">
-
-                                            Female</label><br>
-                                        <label><input name="sex" type="radio">
-
-                                            Phantom</label>
+                                        <label><input name="sex" type="radio" value="0" >Male</label><br>
+                                        <label><input name="sex" type="radio" value="1" >Female</label><br>
+                                        <label><input name="sex" type="radio" value="2" >Phantom</label>
                                     </div>
-
                                     <div class='input-group date col-sm-3' id='datetimepicker2'>
-                                        <input name="h_dob" type='text' class="form-control"
-                                               placeholder="Date of Birth">
+                                        <input name="dob" type='text' class="form-control" placeholder="Date of Birth">
                                         <span class="input-group-addon">
-                            <span class="glyphicon glyphicon-calendar"></span>
-                        </span>
+                                            <span class="glyphicon glyphicon-calendar"></span>
+                                        </span>
                                     </div>
-
-
                                 </div>
-                                <div id=created_family></div>
-
-
                                 <br>
                             </div>
-
-
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                        <button id="new_houseid" type="submit" class="btn btn-primary" name="create_houseid"
+                        <button id="create_houseid" type="submit" class="btn btn-primary" name="create_houseid"
                                 value="true">
                             Create New HouseId
                         </button>
@@ -368,10 +397,12 @@ if (!empty($_POST['search_family'])) {
                             Search for Family Members
                         </button>
                     </div>
+                    <div id=created>
+                        <table id="family_table" class="display" width="100%"></table>
+                    </div>
                 </div>
             </form>
         </div>
-
     </div>
 </div>
 
@@ -393,54 +424,88 @@ if (!empty($_POST['search_family'])) {
         });
 
         $('#getstarted').submit(function () { // catch the form's submit event
+            $('#some_found').hide();
+            $('#none_found').hide();
 
+            let btn = $(document.activeElement).attr('name');
 
-            var formValues = {};
+            let formValues = {};
 
             $.each($(this).serializeArray(), function (i, field) {
+                console.log("adding to formValue: ",field.name, " with value ", field.value);
                 formValues[field.name] = field.value;
-            });
 
-            console.log("getstarted: in submit" + formValues);
-
-
-            $.ajax({ // create an AJAX call...
-                //data: $(this).serialize(), // get the form data
-                data: formValues, // get the form data
-                method: $(this).attr('method'), // GET or POST
-                url: $(this).attr('action') // the file to call
+                //save to modal form to use for new id case
+                $("#modal_"+field.name).val(field.value);
             })
-                .done(function (data) {
-                    console.log("DATA RESULT: " + data.result);
-                    console.log("DATA HTML: " + data.html);
-                    //$('#created').html('<h3>foobar</h3>');
+            formValues[btn] = true;
+            console.log("getstarted: in submit" , formValues);
 
-                    if (data.result === 'success') {
-                        // all is good
-                        console.log("DATA HTML" + data.html);
-                        //$('#created').html('<h3>foobar</h3>');
-                        $('#created').html(data.html);
+            if (btn === 'create_new_user') {
+                $("#reportModal").find('.modal-title').text('Creating a new ID ');
+                $("#reportModal").modal('show');
+                //update hidden field with id
+                $("#modal_cibsr_id").val(null);
+                return false;
+            }
 
-                    } else {
-                        $('#created').html(data.html);
-                        // an error occurred
-                        //alert("Unable to Save<br><br>" + data.message, "ERROR - SAVE FAILURE" );
-                    }
 
+            if (btn === 'search_participant') {
+                $.ajax({ // create an AJAX call...
+                    //data: $(this).serialize(), // get the form data
+                    data: formValues, // get the form data
+                    method: "POST"
                 })
-                .fail(function (data) {
-                    console.log("DATA: " + data.result);
-                    alert("error:" + data.result);
-                })
-                .always(function () {
-                    //saveBtn.html(saveBtnHtml);
-                    //saveBtn.prop('disabled',false);
-                });
+                    .done(function (data) {
+                        console.log("DATA RESULT: ", data);
+
+                        if (data.result === 'success') {
+                            if (btn === 'create_new_user') {
+                                console.log("redirecting to: ", data.link);
+                                $(location).attr('href', data.link);
+                            }
+
+                            if (btn === 'search_participant') {
+                                if ($.fn.DataTable.isDataTable('#search_table')) {
+                                    $('#search_table').dataTable().fnClearTable();
+                                    $('#search_table').dataTable().fnDestroy();
+                                }
+
+//                            console.log("tabulate :  ", data.data);
+//                            let tbl = data.data;
+//                            result = tbl.map(Object.values);
+                                console.log("SIZE of data: ", data.data.length);
+                                if (data.data.length > 0) {
+                                    $('#some_found').show();
+                                    renderDataTable(data.data, 'search_table');
+                                } else {
+                                    $('#none_found').show();
+                                }
+
+                            }
+
+                        } else if (data.result === 'warn') {
+                            alert(data.msg);
+                        }
+
+                    })
+                    .fail(function (data) {
+                        console.log("DATA: ", data);
+                        alert("error:", data);
+                    })
+                    .always(function () {
+                    })
+
+
+                return false;
+            }
 
         });
 
-
         $('#familysearch').submit(function () { // catch the form's submit event
+            let btn = $(document.activeElement).attr('name');
+
+            console.log("FAMILIY SEARCH CALLING button", btn);
 
             var formValues = {};
 
@@ -448,23 +513,43 @@ if (!empty($_POST['search_family'])) {
                 formValues[field.name] = field.value;
             });
 
-            formValues['search_family'] = true;
+            formValues[btn] = true;
+            console.log("FAMILYSEARCH: in submit" , formValues);
 
-            console.log("familysearch: in submit" + formValues);
+
             $.ajax({ // create an AJAX call...
-
                 data: formValues, // get the form data
                 method: "POST" // GET or POST
             })
                 .done(function (data) {
-                    $('#created_family').html('<h3>foobar </h3>');
+                    console.log(data);
 
                     if (data.result === 'success') {
-                        // all is good
-                        $('#created_family').html('<h3>foobar good</h3>');
+
+
+
+                        if (btn === 'create_houseid') {
+                            console.log("redirecting to: ", data.link);
+                            $(location).attr('href', data.link);
+                        }
+
+                        if (btn === 'search_family') {
+
+                            if ($.fn.DataTable.isDataTable( '#family_table' ) ) {
+                                $('#family_table').dataTable().fnClearTable();
+                                $('#family_table').dataTable().fnDestroy();
+                            }
+
+
+                            // all is good
+                            renderDataTable(data.data, 'family_table');
+
+                        }
+
+                    } else if (data.result === 'warn') {
+                        alert(data.msg);
 
                     } else {
-                        $('#created_family').html('<h3>foobar bad</h3>');
                         // an error occurred
                         //alert("Unable to Save<br><br>" + data.message, "ERROR - SAVE FAILURE" );
                     }
@@ -478,27 +563,29 @@ if (!empty($_POST['search_family'])) {
                     //saveBtn.prop('disabled',false);
                 });
 
+            return false;
+
         });
 
         $('#search_table').on('click', 'button.select_id', function () {
             buttonpressed = $(this).attr('name');
-            console.log("search_table: in submit" + buttonpressed);
+            console.log("SEARCH_TABLE ON CLICK:" , buttonpressed);
 
             var id = $(this).data('id');
             var houseid = $(this).data('houseid');
-            console.log("id is " + id);
-            console.log("houseid is " + houseid);
-            var modal = $(this);
+            console.log("id is " , id);
+            console.log("houseid is " , houseid);
 
-            modal.find('.modal-title').text('New message to ' + id);
 
             if (!houseid) {
                 console.log("opening modal");
                 //comment out to show lara
                 $("#reportModal").find('.modal-title').text('Select household id for ' + id);
                 $("#reportModal").modal('show');
+                //update hidden field with id
+                $("#modal_cibsr_id").val(id);
 
-                console.log("why does modal keep shutting down.");
+
             } else {
                 console.log("houseid already exists");
                 //redirect to existing record to edit.
@@ -510,10 +597,129 @@ if (!empty($_POST['search_family'])) {
                     data: formValues,
                     method: "POST"
                 })
+                    .done(function (data) {
+                        console.log("RESUMING====: ", data);
+                        if (data.result === 'success') {
+                            console.log("redirecting to: ", data.link);
+                            $(location).attr('href', data.link);
+                        }
+                    })
+                    .fail(function (data) {
+                        console.log("DATA: ", data);
+                        alert("error:", data);
+                    })
+                    .always(function () {
+                    });
+
+                return false;
+            }
+        });
+
+        $('#family_table').on('click', 'button.select_id', function () {
+            buttonpressed = $(this).attr('name');
+            console.log("FAMILY_TABLE: in click" , buttonpressed);
+
+            var id = $(this).data('id');
+            var houseid = $(this).data('houseid');
+
+            console.log("houseid is " , houseid);
+
+            var modal_cibsr_id =  $("#modal_cibsr_id").val();
+            console.log("cibsr_id is " , modal_cibsr_id);
+
+
+
+            if (!houseid) {
+                console.log("No houseid");
+                //comment out to show lara
+//                $("#reportModal").find('.modal-title').text('Select household id for ' + id);
+//                $("#reportModal").modal('show');
+                //update hidden field with id
+
+            } else {
+                console.log("houseid  exists, Save to current record: ", id);
+                //redirect to existing record to edit.
+                var formValues = {};
+                formValues['save_houseid'] = true;
+                formValues['cibsr_id'] = modal_cibsr_id;
+                formValues['houseid'] = houseid;
+
+                $.ajax({ // create an AJAX call...
+                    data: formValues,
+                    method: "POST"
+                })
+                    .done(function (data) {
+
+                        if (data.result === 'success') {
+                            $(location).attr('href', data.link);
+                        } else {
+
+                        }
+
+                    })
+                    .fail(function (data) {
+                        console.log("DATA: " , data);
+                        alert("error:" , data);
+                    })
+                    .always(function () {
+                    });
+
+                return false;
             }
         });
 
     });
+
+    function renderDataTable(tbl, id) {
+        console.log("iRENDERDATATABLE method: ", tbl);
+        result = tbl.map(Object.values);
+
+
+        $('#'+id).DataTable( {
+            data: result,
+            searching: false,
+            paging: false,
+            info: false,
+            columns: [
+                { title: "CIBSR ID"},
+                { title: "First Name" },
+                { title: "Last Name" },
+                { title: "Gender" },
+                { title: "Birth date" },
+                { title: "House ID" }
+            ],
+            "columnDefs": [
+                {
+                    "render": function ( data, type, row ) {
+                        let foo =  "<td><button type='button' class='btn btn-info select_id' data-id='"+data+"' data-houseid='"+row[5]+"'>"+data+"</button></td>";
+                        return foo;
+                    },
+                    "targets": 0
+                },
+                {
+                    "render": function ( data, type, row ) {
+                        console.log("gender data is ", data);
+                        switch(data) {
+                            case "0":
+                                gender = 'Male';
+                                break;
+                            case "1":
+                                gender = 'Female';
+                                break;
+                            case "2":
+                                gender = 'Phantom';
+                                break
+                            default:
+                                gender = data;
+                        }
+                        return gender;
+                    },
+                    "targets": 3
+                },
+                { "visible": true,  "targets": [ 2 ] }
+            ]
+        } );
+    }
 
 
 </script>

@@ -8,7 +8,7 @@ use Plugin;
 
 class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
-    public function searchPerson($search_fields) {
+    public function searchPerson($search_fields, $mandatory_field = '') {
 
         //todo: use filter to get the list or use SQL??
         $filter = "";
@@ -19,12 +19,22 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
             // Build array of fields and search filter
             $filters = array();
             foreach ($search_fields as $key => $v) {
-                Plugin::log($key, "DEBUG", "KEY FOR ".$v. ' empty: ' . empty($v));
-                if (!empty($v)) {
-                    $filters[] = "([" . $key . "] = '" . $v . "')";
+                Plugin::log($key, "DEBUG", "KEY FOR ".$v. ' empty: ' . isset($v));
+                if (isset($v)) {
+                    if (($key == 'first_name') || ($key == 'last_name')) {
+                        $filters[] = "contains ([" . $key . "],  '" . $v . "')";
+                    } else {
+                        $filters[] = "([" . $key . "] = '" . $v . "')";
+                    }
                 }
             }
             $filter = implode(" AND ", $filters);
+
+            //if doing a fmaily search, only return values which have houseid
+            if ($mandatory_field <> '') {
+                $filter .= " AND ([" . $mandatory_field . "] <> '')";
+            }
+
         }
 
         Plugin::log($filter, "Filter");
@@ -46,12 +56,34 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
     }
 
 
-    private static function getNextId($pid, $id_field, $event_id, $prefix = '', $padding = false) {
-        $thisProj = new Project($pid);
-        $recordIdField = $thisProj->table_pk;
-        $q = REDCap::getData($pid,'array',NULL,array($id_field), $event_id);
+    public static function getNextHouseId($pid, $id_field, $event_id, $prefix = '', $padding = false) {
+        Plugin::log($id_field, "DEBUG", "looking for event: ".$event_id . " in pid: " .$pid);
 
-        Plugin::log("Found records in project $pid using $recordIdField", $q);
+        $q = REDCap::getData($pid,'array',NULL,array($id_field), $event_id);
+        //Plugin::log($q, "DEBUG", "Found records in project $pid using $id_field");
+
+        $house_ids = array();
+        foreach ($q as $event_ids)
+        {
+            foreach ($event_ids as $candidate)
+            {
+                Plugin::log($candidate, "DEBUG", "candidate is ". current($candidate));
+                $house_ids[] = current($candidate);
+            }
+        }
+
+        Plugin::log($house_ids, "DEBUG", "MAX IS ". max($house_ids));
+        return max($house_ids) + 1;
+        
+    }
+
+    public static function getNextId($pid, $id_field, $event_id, $prefix = '', $padding = false) {
+        $thisProj = new Project($pid);
+        //$recordIdField = $thisProj->table_pk;
+        Plugin::log($id_field, "DEBUG", "looking for event: ".$event_id . " in pid: " .$pid);
+        
+        $q = REDCap::getData($pid,'array',NULL,array($id_field), $event_id);
+        //Plugin::log($q, "DEBUG", "Found records in project $pid using $id_field");
 
         $i = 1;
         do {
@@ -71,12 +103,12 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
             // Add the prefix
             $id = $prefix . $id;
-            Plugin::log("Prefixed id for $i is $id");
+            //Plugin::log("Prefixed id for $i is $id");
 
             $i++;
         } while (!empty($q[$id][$event_id][$id_field]));
 
-        Plugin::log("New ID in project $pid is $id");
+        Plugin::log("Next ID in project $pid for field $id_field is $id");
         return $id;
     }
 
@@ -176,46 +208,12 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
                         }
                         break;
-                    case "participant_id":
-                        $items = "";
-                        $url = $module->getUrl("ClinicianDashboard.php", true);
-                        $url .= '&record=' . $this_col;
-                        $this_id = $this_col;
-                        $link = "<a  href='$url'>" . $this_col . "</a>";
-                        $rows .= '<td>' . $link . '</td>';
-                        break;
-                    case "primary_clinicians":
-                        $items = "";
-
-                        //foreach($this_col as $item) $items[] = "<span class='label label-default'>" . $item . "</span> ";
-                        foreach ($this_col as $item) {
-                            $items[] = "
-                        <div class='btn-group'>
-                            <button type='button' data-toggle='dropdown' class='btn btn-xs btn-info dropdown-toggle'>" . $item . "
-                                <span class=\"caret\"></span>
-                            </button>
-                            <ul class='dropdown-menu'>
-                                <li><a href='#' class='removeClinician' value='$item' name='$this_id'>Remove</a></li>
-                                <li><a href='#' class='editClinicianLink' value='$item' name='$this_id'>Edit Clinician</a></li>
-                            </ul>
-                        </div> ";
-                        }
-                        // SurveyDashboard::log($this_id, "THIS ID");
-
-                        $rows .= '<td>' . implode("",$items) . '<i id="editClinicianListButton_'.$this_id.'" class=\' editClinicianListButton glyphicon glyphicon-plus\' value="'.$this_id.'"  name="'.$this_id.'" style="float: right; width: 32px;"></i></td>';
-
-                        break;
 
                     default:
                         $rows .= '<td>' . $this_col . '</td>';
 
                 }
             }
-            //$this_id = $this_row[REDCap::getRecordIdField()];
-            //$house_id = $this_row['house_id'];
-
-            //$rows .= "<td><button type='button' class='btn btn-info select_id' data-toggle='modal' data-target='#reportModal' data-id='$this_id' data-houseid='$house_id'>$this_id</button></td>";
-            //$rows .= "<td><button class='select_id' data-id='$this_id' data-houseid='$house_id' >$this_id</button></td>";
 
             $rows .= '</tr>';
         }
@@ -233,9 +231,6 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
         $data[REDCap::getRecordIdField()] = $next_id;
 
         $q = REDCap::saveData('json', json_encode(array($data)));
-        Plugin::log($Proj->project_id, "DEBUG", "PROJECT ID:  ". $next_id );
-
-
         Plugin::log("Saved New User", $this->config, $data, $q);
 
         //if save was a success, return the new id
@@ -246,5 +241,6 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
             return $next_id;
         }
     }
+
 
 }

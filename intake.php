@@ -27,7 +27,6 @@ Plugin::log($_POST, "DEBUG", "POST");
 
 // IF POST, PROCESS "SUBMISSION"
 if (!empty($_POST['search_participant'])) {
-    Plugin::log($data, "DEBUG", "DATA GET STARTED");
 
     //for security reasons, if either name field is empty, return a fail with an alert
     if (empty($fname) || empty($lname)) {
@@ -177,9 +176,7 @@ if (!empty($_POST['search_family'])) {
 
         //for this search, only return values which have houseIds
         $h_search_results = $module->searchPerson($data, "house_id");
-
-
-        Plugin::log($h_search_results, "DEBUG", "SEARCH RESULTS FOUNDD");
+        //Plugin::log($h_search_results, "DEBUG", "SEARCH RESULTS FOUNDD");
 
         $result = array(
             'result' => 'success',
@@ -465,14 +462,14 @@ if (!empty($_POST['create_houseid'])) {
             let formValues = {};
 
             $.each($(this).serializeArray(), function (i, field) {
-                console.log("adding to formValue: ",field.name, " with value ", field.value);
+                //console.log("adding to formValue: ",field.name, " with value ", field.value);
                 formValues[field.name] = field.value;
 
                 //save to modal form to use for new id case
                 $("#modal_"+field.name).val(field.value);
             });
             formValues[btn] = true;
-            console.log("getstarted: in submit" , formValues);
+
 
             if (btn === 'create_new_user') {
                 $("#reportModal").find('.modal-title').text('Select the House ID for this person:'+ formValues.firstname+ " "+ formValues.lastname);
@@ -490,7 +487,6 @@ if (!empty($_POST['create_houseid'])) {
                     method: "POST"
                 })
                     .done(function (data) {
-                        console.log("DATA RESULT: ", data);
 
                         if (data.result === 'success') {
                             if (btn === 'create_new_user') {
@@ -504,10 +500,6 @@ if (!empty($_POST['create_houseid'])) {
                                     $('#search_table').dataTable().fnDestroy();
                                 }
 
-//                            console.log("tabulate :  ", data.data);
-//                            let tbl = data.data;
-//                            result = tbl.map(Object.values);
-                                console.log("SIZE of data: ", data.data.length);
                                 if (data.data.length > 0) {
                                     $('#some_found').show();
                                     renderDataTable(data.data, 'search_table');
@@ -538,8 +530,6 @@ if (!empty($_POST['create_houseid'])) {
         $('#familysearch').submit(function () { // catch the form's submit event
             let btn = $(document.activeElement).attr('name');
 
-            console.log("FAMILIY SEARCH CALLING button", btn);
-
             var formValues = {};
 
             $.each($(this).serializeArray(), function (i, field) {
@@ -547,15 +537,12 @@ if (!empty($_POST['create_houseid'])) {
             });
 
             formValues[btn] = true;
-            console.log("FAMILYSEARCH: in submit" , formValues);
-
 
             $.ajax({ // create an AJAX call...
                 data: formValues, // get the form data
                 method: "POST" // GET or POST
             })
                 .done(function (data) {
-                    console.log(data);
 
                     if (data.result === 'success') {
                         //if (btn === 'create_houseid') {
@@ -600,17 +587,12 @@ if (!empty($_POST['create_houseid'])) {
 
         $('#search_table').on('click', 'button.select_id', function () {
             buttonpressed = $(this).attr('name');
-            console.log("SEARCH_TABLE ON CLICK:" , buttonpressed);
 
             var id = $(this).data('id');
             var houseid = $(this).data('houseid');
-            console.log("search ID: id is " , $(this).data);
-            console.log("id is " , id);
-            console.log("houseid is " , houseid);
-
 
             if (!houseid) {
-                console.log("opening modal");
+
                 //comment out to show lara
                 $("#reportModal").find('.modal-title').text('Select house ID for ' + id);
                 $("#reportModal").modal('show');
@@ -619,7 +601,6 @@ if (!empty($_POST['create_houseid'])) {
 
 
             } else {
-                console.log("houseid already exists");
                 //redirect to existing record to edit.
                 var formValues = {};
                 formValues['resume_existing'] = true;
@@ -649,7 +630,6 @@ if (!empty($_POST['create_houseid'])) {
 
         $('#family_table').on('click', 'button.select_id', function () {
             buttonpressed = $(this).attr('name');
-            console.log("FAMILY_TABLE: in click" , buttonpressed);
 
             var id = $(this).data('id');
             var houseid = $(this).data('houseid');
@@ -661,18 +641,8 @@ if (!empty($_POST['create_houseid'])) {
 
 
             var modal_cibsr_id =  $("#modal_cibsr_id").val();
-            console.log("cibsr_id is " , modal_cibsr_id);
 
-            console.log("houseid is " , houseid, " CIBSR ID: ", id, " firstnmae: ", first_name);
-
-            if (!houseid) {
-                console.log("No houseid");
-                //comment out to show lara
-//                $("#reportModal").find('.modal-title').text('Select household id for ' + id);
-//                $("#reportModal").modal('show');
-                //update hidden field with id
-
-            } else {
+            if (houseid) {
                 console.log("houseid exists, Save to current record: ", id);
                 //redirect to existing record to edit.
                 var formValues = {};
@@ -722,9 +692,6 @@ if (!empty($_POST['create_houseid'])) {
     });
 
     function renderDataTable(tbl, id) {
-
-
-        console.log("iRENDERDATATABLE method: ", tbl);
         result = tbl.map(Object.values);
 
 
@@ -751,7 +718,6 @@ if (!empty($_POST['create_houseid'])) {
                 },
                 {
                     "render": function ( data, type, row ) {
-                        console.log("gender data is ", data);
                         switch(data) {
                             case "0":
                                 gender = 'Male';
@@ -775,12 +741,7 @@ if (!empty($_POST['create_houseid'])) {
     }
 
     function renderFamilyDataTable(tbl, id, formVal) {
-        console.log("hello");
-        console.log("renderFamilyDataTable method: ", formVal.modal_firstname);
-
-        console.log("renderFamilyDataTable method: ", tbl);
         result = tbl.map(Object.values);
-        console.log("renderFamilyDataTable method: ", result);
 
         $('#'+id).DataTable( {
             data: result,
@@ -805,7 +766,6 @@ if (!empty($_POST['create_houseid'])) {
                 },
                 {
                     "render": function ( data, type, row ) {
-                        console.log("gender data is ", data);
                         switch(data) {
                             case "0":
                                 gender = 'Male';

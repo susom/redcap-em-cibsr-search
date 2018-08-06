@@ -12,14 +12,13 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
         //todo: use filter to get the list or use SQL??
         $filter = "";
-        Plugin::log($search_fields, "DEBUG", "serach fields");
         if (empty($search_fields)) {
             $filter = null;
         } else {
             // Build array of fields and search filter
             $filters = array();
             foreach ($search_fields as $key => $v) {
-                Plugin::log($key, "DEBUG", "KEY FOR ".$v. ' empty: ' . isset($v));
+                //Plugin::log($key, "DEBUG", "KEY FOR ".$v. ' empty: ' . isset($v));
                 if (isset($v)) {
                     if (($key == 'first_name') || ($key == 'last_name')) {
                         $filters[] = "contains ([" . $key . "],  '" . $v . "')";
@@ -51,7 +50,6 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
         $q = REDCap::getData('json', NULL,$get_data, NULL, NULL, FALSE, FALSE, FALSE, $filter);
         $records = json_decode($q, true);
 
-        Plugin::log($records, "Records");
         return $records;
     }
 
@@ -67,12 +65,12 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
         {
             foreach ($event_ids as $candidate)
             {
-                Plugin::log($candidate, "DEBUG", "candidate is ". current($candidate));
+                //Plugin::log($candidate, "DEBUG", "candidate is ". current($candidate));
                 $house_ids[] = current($candidate);
             }
         }
 
-        Plugin::log($house_ids, "DEBUG", "MAX IS ". max($house_ids));
+        //Plugin::log($house_ids, "DEBUG", "MAX IS ". max($house_ids));
         return max($house_ids) + 1;
         
     }
@@ -192,15 +190,15 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
                     case "sex":
                         switch ($this_col) {
                             case "0":
-                                Plugin::log($this_col, "DEBUG", "PICKING MALE for ".$this_id);
+                                //Plugin::log($this_col, "DEBUG", "PICKING MALE for ".$this_id);
                                 $rows .= '<td>Male</td>';
                                 break;
                             case "1" :
-                                Plugin::log($this_col, "DEBUG", "PICKING FEMALE for " .$this_id);
+                                //Plugin::log($this_col, "DEBUG", "PICKING FEMALE for " .$this_id);
                                 $rows .= '<td>Female</td>';
                                 break;
                             case "2" :
-                                Plugin::log($this_col, "DEBUG", "PICKING PHANTOM for ".$this_id);
+                                //Plugin::log($this_col, "DEBUG", "PICKING PHANTOM for ".$this_id);
                                 $rows .= '<td>Phantom</td>';
                                 break;
                             default:
@@ -223,7 +221,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
     public function setNewUser($data) {
         global $Proj;
-        Plugin::log($data, "DEBUG", "DATA: : : Saving New User". $this->config );
+        //Plugin::log($data, "DEBUG", "DATA: : : Saving New User". $this->config );
         //save data from the new user login page
         //create new record so get a new id
         $next_id = self::getNextId($Proj->project_id, REDCap::getRecordIdField(),$Proj->firstEventId);
@@ -231,7 +229,6 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
         $data[REDCap::getRecordIdField()] = $next_id;
 
         $q = REDCap::saveData('json', json_encode(array($data)));
-        Plugin::log("Saved New User", $this->config, $data, $q);
 
         //if save was a success, return the new id
         if (!empty($q['errors'])) {

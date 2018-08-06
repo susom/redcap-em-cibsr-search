@@ -104,23 +104,54 @@ if (!empty($_POST['resume_existing'])) {
     }
 }
 
-if (!empty($_POST['save_houseid'])) {
+if (!empty($_POST['save'])) {
     $cibsr_id = (!empty($_POST["cibsr_id"]) ? $_POST["cibsr_id"] : null);
     $houseid = (!empty($_POST["houseid"]) ? $_POST["houseid"] : null);
+    $dob_mdy = (!empty($_POST["modal_dob"]) ? $_POST["modal_dob"] : null);
 
 
-    if ($cibsr_id && $houseid) {
 
-        $data = array(
-            'cibsr_id' => $cibsr_id,
-            'house_id' => $houseid);
 
+
+    //save post data to data save array
+    $data = array(
+        'first_name' => (!empty($_POST["modal_firstname"]) ? $_POST["modal_firstname"] : null),
+        'last_name' => (!empty($_POST["modal_lastname"]) ? $_POST["modal_lastname"] : null),
+        'sex' => (!empty($_POST["modal_sex"]) ? $_POST["modal_sex"] : null)
+    );
+
+    if ($dob_mdy) {
+        $dob = date("Y-m-d", strtotime($dob_mdy));
+        $data['dob'] = $dob;
+    }
+
+    //if $cibsr_id is null, then it's a new record. create a new id
+    //probably coming in from the new CIBSRID
+    if (!$cibsr_id) {
+        //probably coming in from Create New, so create new ID
+        $cibsr_id = $module->setNewUser($data);
+        Plugin::log($cibsr_id, "DEBUG", "Created new cibsr");
+    }
+
+    //create houseid if no houseid
+    if (!$houseid) {
+        $houseid = CIBSRSearch::getNextHouseId($project_id, 'house_id', $Proj->firstEventId);
+        Plugin::log($houseid, "DEBUG", "CREATED NEW HOUSE ID");
+    }
+    $data['house_id'] = $houseid;
+
+    //only fail if cibsr is missing
+    //if ($cibsr_id && $houseid) {
+    if ($cibsr_id ) {
+        $data['cibsr_id'] = $cibsr_id;
+
+        Plugin::log($data, "DEBUG", "Saving this data in REDCap ");
         $houseid_status = REDCap::saveData('json', json_encode(array($data)));
 
         //setup the survey
         $instrument = 'demographics';  //todo: hardcoded?
         $survey_link = REDCap::getSurveyLink($cibsr_id, $instrument);
-        Plugin::log($survey_link, "DEBUG", "SURVEY_LINK: " . $cibsr_id . "in instrument" . $instrument);
+        Plugin::log($survey_link, "DEBUG", "SURVEY_LINK: ID: " . $cibsr_id . " in instrument: " . $instrument);
 
         $result = array('result' => 'success',
             'status' => $houseid_status,
@@ -129,6 +160,8 @@ if (!empty($_POST['save_houseid'])) {
         print json_encode($result);
         exit();
 
+    } else {
+        Plugin::log($cibsr_id, "ERROR", "Something bad happend with  cibsr id");
     }
 }
 
@@ -264,13 +297,13 @@ if (!empty($_POST['create_houseid'])) {
                     <label for="name" class="control-label col-sm-1">Name:</label>
                     <div class="col-sm-2">
                         <input type="text" class="form-control" name="firstname" id="firstname" placeholder="First Name"
-                               value=<?php echo $fname ?>>
+                               value="<?php echo $fname ?>" autocomplete="off">
                     </div>
                     <div class="col-sm-2">
                         <input type="text" class="form-control" name="lastname" id="lastname" placeholder="Last Name"
-                               value=<?php echo $lname ?>>
+                               value="<?php echo $lname ?>" autocomplete="off">
                     </div>
-                    <label for="gender" class="control-label col-sm-1">Gender:</label>
+                    <label for="gender" class="control-label col-sm-1">Sex:</label>
                     <div class="col-sm-2">
                         <label><input name="sex" type="radio"
                                       value="0" <?php echo ($gender == "0") ? 'checked="checked"' : ''; ?>>
@@ -284,8 +317,8 @@ if (!empty($_POST['create_houseid'])) {
 
                     <label for="dob" class="control-label col-sm-1">Date of Birth:</label>
                     <div class='input-group date col-sm-2' id='datetimepicker'>
-                        <input name="dob" type='text' class="form-control" placeholder="Date of Birth"
-                               value=<?php echo $dob ?>>
+                        <input name="dob" type='text' class="form-control" placeholder="mm/dd/yyyy"
+                               value="<?php echo $dob ?>" autocomplete="off">
                         <span class="input-group-addon">
                             <span class="glyphicon glyphicon-calendar"></span>
                         </span>
@@ -335,7 +368,7 @@ if (!empty($_POST['create_houseid'])) {
          aria-hidden="true">
 
         <div class="modal-dialog">
-            <form method="POST" id="familysearch" action="">
+            <form method="POST" id="familysearch" action="" autocomplete='off'>
                 <!-- Modal content-->
                 <div class="modal-content">
                     <div class="modal-header">
@@ -345,11 +378,11 @@ if (!empty($_POST['create_houseid'])) {
                     </div>
                     <div class="modal-body">
                         <div class="panel-body" id="set_household_modal">
-                            <input type="hidden" name="modal_cibsr_id" id="modal_cibsr_id"/>
-                            <input type="hidden" name="modal_firstname" id="modal_firstname"/>
-                            <input type="hidden" name="modal_lastname" id="modal_lastname"/>
-                            <input type="hidden" name="modal_sex" id="modal_sex"/>
-                            <input type="hidden" name="modal_dob" id="modal_dob"/>
+                            <input type="hidden" name="modal_cibsr_id" id="modal_cibsr_id" autocomplete="off"/>
+                            <input type="hidden" name="modal_firstname" id="modal_firstname" autocomplete="off"/>
+                            <input type="hidden" name="modal_lastname" id="modal_lastname" autocomplete="off" />
+                            <input type="hidden" name="modal_sex" id="modal_sex" autocomplete="off"/>
+                            <input type="hidden" name="modal_dob" id="modal_dob" autocomplete="off"/>
 
                             <p class="control-label col-sm-12">Household ID has not yet been set for this
                                 participant.</p>
@@ -358,25 +391,25 @@ if (!empty($_POST['create_houseid'])) {
                                     a participant. </label>
                                 <div class="clearfix row">
                                     <label for="name" class="control-label col-sm-6">Name:</label>
-                                    <label for="gender" class="control-label lb-sm col-sm-3">Gender:</label>
+                                    <label for="gender" class="control-label lb-sm col-sm-3">Sex:</label>
                                     <label for="dob" class="control-label col-sm-3">Date of Birth:</label>
                                 </div>
                                 <div class="clearfix row">
                                     <div class="col-sm-3">
                                         <input type="text" class="form-control" name="firstname" id="firstname"
-                                               placeholder="First Name">
+                                               placeholder="First Name" autocomplete="off">
                                     </div>
                                     <div class="col-sm-3">
                                         <input type="text" class="form-control" name="lastname" id="lastname"
-                                               placeholder="Last Name">
+                                               placeholder="Last Name" autocomplete="off">
                                     </div>
                                     <div class="col-sm-3">
-                                        <label><input name="sex" type="radio" value="0" >Male</label><br>
-                                        <label><input name="sex" type="radio" value="1" >Female</label><br>
-                                        <label><input name="sex" type="radio" value="2" >Phantom</label>
+                                        <label><input name="sex" type="radio" value="0" autocomplete="off">Male</label><br>
+                                        <label><input name="sex" type="radio" value="1" autocomplete="off">Female</label><br>
+                                        <label><input name="sex" type="radio" value="2" autocomplete="off">Phantom</label>
                                     </div>
                                     <div class='input-group date col-sm-3' id='datetimepicker2'>
-                                        <input name="dob" type='text' class="form-control" placeholder="Date of Birth">
+                                        <input name="dob" type='text' class="form-control" placeholder="mm/dd/yyyy" autocomplete="off">
                                         <span class="input-group-addon">
                                             <span class="glyphicon glyphicon-calendar"></span>
                                         </span>
@@ -388,8 +421,7 @@ if (!empty($_POST['create_houseid'])) {
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                        <button id="create_houseid" type="submit" class="btn btn-primary" name="create_houseid"
-                                value="true">
+                        <button id="save" type="submit" class="btn btn-primary" name="save" value="true">
                             Create New HouseId
                         </button>
                         <button id="search_family" type="submit" class="btn btn-primary" name="search_family"
@@ -414,13 +446,17 @@ if (!empty($_POST['create_houseid'])) {
 <script type="text/javascript">
 
     $(document).ready(function () {
+
+        // turn off cached entries
+        $("form :input").attr("autocomplete", "off");
+
         $('#datetimepicker').datepicker({
-            format: 'yyyy-mm-dd'
+            format: 'mm/dd/yyyy'
         });
 
 
         $('#datetimepicker2').datepicker({
-            format: 'yyyy-mm-dd'
+            format: 'mm/dd/yyyy'
         });
 
         $('#getstarted').submit(function () { // catch the form's submit event
@@ -442,7 +478,7 @@ if (!empty($_POST['create_houseid'])) {
             console.log("getstarted: in submit" , formValues);
 
             if (btn === 'create_new_user') {
-                $("#reportModal").find('.modal-title').text('Creating a new ID ');
+                $("#reportModal").find('.modal-title').text('Select the House ID for this person:'+ formValues.firstname+ " "+ formValues.lastname);
                 $("#reportModal").modal('show');
                 //update hidden field with id
                 $("#modal_cibsr_id").val(null);
@@ -525,10 +561,8 @@ if (!empty($_POST['create_houseid'])) {
                     console.log(data);
 
                     if (data.result === 'success') {
-
-
-
-                        if (btn === 'create_houseid') {
+                        //if (btn === 'create_houseid') {
+                        if (btn === 'save') {
                             console.log("redirecting to: ", data.link);
                             $(location).attr('href', data.link);
                         }
@@ -542,7 +576,7 @@ if (!empty($_POST['create_houseid'])) {
 
 
                             // all is good
-                            renderDataTable(data.data, 'family_table');
+                            renderFamilyDataTable(data.data, 'family_table', formValues);
 
                         }
 
@@ -621,13 +655,17 @@ if (!empty($_POST['create_houseid'])) {
 
             var id = $(this).data('id');
             var houseid = $(this).data('houseid');
+            var first_name = $(this).data('firstname');
+            var last_name = $(this).data('lastname');
+            var dob = $(this).data('dob');
+            var sex = $(this).data('sex');
 
-            console.log("houseid is " , houseid);
+
 
             var modal_cibsr_id =  $("#modal_cibsr_id").val();
             console.log("cibsr_id is " , modal_cibsr_id);
 
-
+            console.log("houseid is " , houseid, " CIBSR ID: ", id, " firstnmae: ", first_name);
 
             if (!houseid) {
                 console.log("No houseid");
@@ -637,12 +675,27 @@ if (!empty($_POST['create_houseid'])) {
                 //update hidden field with id
 
             } else {
-                console.log("houseid  exists, Save to current record: ", id);
+                console.log("houseid exists, Save to current record: ", id);
                 //redirect to existing record to edit.
                 var formValues = {};
-                formValues['save_houseid'] = true;
-                formValues['cibsr_id'] = modal_cibsr_id;
+
+                $.each($(this).serializeArray(), function (i, field) {
+                    console.log("family_table: adding to formValue: ",field.name, " with value ", field.value);
+                    formValues[field.name] = field.value;
+                })
+
+                formValues['save'] = true;
+                //formValues['cibsr_id'] = modal_cibsr_id;
+                formValues['cibsr_id'] = id;
                 formValues['houseid'] = houseid;
+                //modal_firstname: "test", modal_lastname: "two"
+                formValues['modal_firstname'] = first_name;
+                formValues['modal_lastname'] = last_name;
+                formValues['modal_dob'] = dob;
+                formValues['modal_sex'] = sex;
+
+                console.log("family_table formValues:" , formValues);
+
 
                 $.ajax({ // create an AJAX call...
                     data: formValues,
@@ -671,6 +724,8 @@ if (!empty($_POST['create_houseid'])) {
     });
 
     function renderDataTable(tbl, id) {
+
+
         console.log("iRENDERDATATABLE method: ", tbl);
         result = tbl.map(Object.values);
 
@@ -695,6 +750,60 @@ if (!empty($_POST['create_houseid'])) {
                         return foo;
                     },
                     "targets": 0
+                },
+                {
+                    "render": function ( data, type, row ) {
+                        console.log("gender data is ", data);
+                        switch(data) {
+                            case "0":
+                                gender = 'Male';
+                                break;
+                            case "1":
+                                gender = 'Female';
+                                break;
+                            case "2":
+                                gender = 'Phantom';
+                                break
+                            default:
+                                gender = data;
+                        }
+                        return gender;
+                    },
+                    "targets": 3
+                },
+                { "visible": true,  "targets": [ 2 ] }
+            ]
+        } );
+    }
+
+    function renderFamilyDataTable(tbl, id, formVal) {
+        console.log("hello");
+        console.log("renderFamilyDataTable method: ", formVal.modal_firstname);
+
+        console.log("renderFamilyDataTable method: ", tbl);
+        result = tbl.map(Object.values);
+        console.log("renderFamilyDataTable method: ", result);
+
+        $('#'+id).DataTable( {
+            data: result,
+            searching: false,
+            paging: false,
+            info: false,
+            columns: [
+                { title: "CIBSR ID"},
+                { title: "First Name" },
+                { title: "Last Name" },
+                { title: "Gender" },
+                { title: "Birth date" },
+                { title: "Select House ID" }
+            ],
+            "columnDefs": [
+                {
+                    "render": function ( data, type, row ) {
+                        let foo =  "<td><button type='button' class='btn btn-info select_id' data-id='' data-firstname='"+formVal.modal_firstname+"' data-lastname='"+formVal.modal_lastname+"' data-dob='"+formVal.modal_dob+"' data-sex='"+formVal.modal_sex+"' data-houseid='"+row[5]+"'>"+data+"</button></td>";
+                        return foo;
+                    },
+                    "targets": 5
                 },
                 {
                     "render": function ( data, type, row ) {

@@ -109,10 +109,6 @@ if (!empty($_POST['save'])) {
     $houseid = (!empty($_POST["houseid"]) ? $_POST["houseid"] : null);
     $dob_mdy = (!empty($_POST["modal_dob"]) ? $_POST["modal_dob"] : null);
 
-
-
-
-
     //save post data to data save array
     $data = array(
         'first_name' => (!empty($_POST["modal_firstname"]) ? $_POST["modal_firstname"] : null),
@@ -197,6 +193,7 @@ if (!empty($_POST['search_family'])) {
 
 }
 
+//TODO: delete if 'save' takes care of both cases.
 if (!empty($_POST['create_houseid'])) {
     //reuse the passed in modal_cibsr_id to add a new houseid and redirect to survey link
     $cibsr_id = (!empty($_POST["modal_cibsr_id"]) ? $_POST["modal_cibsr_id"] : null);
@@ -473,7 +470,7 @@ if (!empty($_POST['create_houseid'])) {
 
                 //save to modal form to use for new id case
                 $("#modal_"+field.name).val(field.value);
-            })
+            });
             formValues[btn] = true;
             console.log("getstarted: in submit" , formValues);
 
@@ -530,7 +527,7 @@ if (!empty($_POST['create_houseid'])) {
                         alert("error:", data);
                     })
                     .always(function () {
-                    })
+                    });
 
 
                 return false;
@@ -607,6 +604,7 @@ if (!empty($_POST['create_houseid'])) {
 
             var id = $(this).data('id');
             var houseid = $(this).data('houseid');
+            console.log("search ID: id is " , $(this).data);
             console.log("id is " , id);
             console.log("houseid is " , houseid);
 
@@ -614,7 +612,7 @@ if (!empty($_POST['create_houseid'])) {
             if (!houseid) {
                 console.log("opening modal");
                 //comment out to show lara
-                $("#reportModal").find('.modal-title').text('Select household id for ' + id);
+                $("#reportModal").find('.modal-title').text('Select house ID for ' + id);
                 $("#reportModal").modal('show');
                 //update hidden field with id
                 $("#modal_cibsr_id").val(id);
@@ -682,11 +680,11 @@ if (!empty($_POST['create_houseid'])) {
                 $.each($(this).serializeArray(), function (i, field) {
                     console.log("family_table: adding to formValue: ",field.name, " with value ", field.value);
                     formValues[field.name] = field.value;
-                })
+                });
 
                 formValues['save'] = true;
-                //formValues['cibsr_id'] = modal_cibsr_id;
-                formValues['cibsr_id'] = id;
+                formValues['cibsr_id'] = modal_cibsr_id;
+                //formValues['cibsr_id'] = id;
                 formValues['houseid'] = houseid;
                 //modal_firstname: "test", modal_lastname: "two"
                 formValues['modal_firstname'] = first_name;
@@ -736,7 +734,7 @@ if (!empty($_POST['create_houseid'])) {
             paging: false,
             info: false,
             columns: [
-                { title: "CIBSR ID"},
+                { title: "Select CIBSR ID"},
                 { title: "First Name" },
                 { title: "Last Name" },
                 { title: "Gender" },
@@ -763,7 +761,7 @@ if (!empty($_POST['create_houseid'])) {
                                 break;
                             case "2":
                                 gender = 'Phantom';
-                                break
+                                break;
                             default:
                                 gender = data;
                         }
@@ -817,7 +815,7 @@ if (!empty($_POST['create_houseid'])) {
                                 break;
                             case "2":
                                 gender = 'Phantom';
-                                break
+                                break;
                             default:
                                 gender = data;
                         }

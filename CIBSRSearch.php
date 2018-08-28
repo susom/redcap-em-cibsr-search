@@ -8,6 +8,46 @@ use Plugin;
 
 class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
+    function hook_save_record($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance = 1)
+    {
+        $triggering_form = 'demographics';  //todo: hardcoded, change to config
+        $from_field = 'family_sql_search';
+        $to_field = 'house_id';
+
+        $changed = array();
+
+        if ($instrument = $triggering_form) {
+            $q = \REDCap::getData('json',$record,array(\REDCap::getRecordIdField(),$from_field));
+            $records = json_decode($q,true);
+            //$this->emDebug($records);
+
+            //switch out the from_field to the to_field
+            foreach ($records as $record) {
+                $record[$to_field] = $record[$from_field];
+                unset($record[$from_field]);
+                //$this->emDebug($record);
+                $changed[] = $record;
+            }
+            //$this->emDebug($changed);
+
+            //save back to the record
+            \REDCap::saveData('json',json_encode($changed));
+        }
+
+    }
+
+    function hook_survey_complete() {
+        //Not necessary.  HOok save record also works for survey completion.
+        //$this->mapURL($record,$instrument, $event_id);
+    }
+
+    public function getSearchArray() {
+        $fields = array(REDCap::getRecordIdField(),'first_name', 'last_name', 'sex', 'dob', 'house_id');
+        $q = REDCap::getData('json', NULL,$fields);
+        $records = json_decode($q, true);
+        return $records;
+    }
+
     public function searchPerson($search_fields, $mandatory_field = '') {
 
         //todo: use filter to get the list or use SQL??
@@ -239,5 +279,28 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
         }
     }
 
+
+    /**
+     *
+     * emLogging integration
+     *
+     */
+    function emLog() {
+        $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
+        $emLogger->emLog($this->PREFIX, func_get_args(), "INFO");
+    }
+
+    function emDebug() {
+        // Check if debug enabled
+        if ($this->getSystemSetting('enable-system-debug-logging') || $this->getProjectSetting('enable-project-debug-logging')) {
+            $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
+            $emLogger->emLog($this->PREFIX, func_get_args(), "DEBUG");
+        }
+    }
+
+    function emError() {
+        $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
+        $emLogger->emLog($this->PREFIX, func_get_args(), "ERROR");
+    }
 
 }

@@ -19,11 +19,36 @@ if (empty($_SESSION['cibsr_search'])) {
 
 }
 
+$options = array(
+    "keys" => [
+        [
+            "name"=>"first_name",
+            "weight"=>0.3
+        ],
+        [
+            "name"=>"last_name",
+            "weight"=>0.7
+        ]
+    ],
+    //"threshold" => 0.2,
+    "includeScore" => true,
+    "caseSensitive"=>false
+    //"tokenize" => true,
+    //"includeScore" => true
+    //"verbose" => true
+    //
+);
+
+$cibsr_recs = $_SESSION['cibsr_search'];
+
+//$fuse = new \Fuse\Fuse($data);
+//$fuse = new \Fuse\Fuse($cibsr_recs, $options);
+
 //$module->emDebug("CIBSR RECS: ", $cibsr_recs);
 //$module->emDebug("FUSE RECS: ", $fuse);
 
 
-//$module->emDebug("FUSE SEARCH",$fuse->search('test tree'));
+//$module->emDebug("FUSE SEARCH",$fuse->search('shantelle dickerson')); exit;
 
 
 $search_results = null;
@@ -44,24 +69,58 @@ $data = array(
     "sex" => $_POST["sex"] //$gender,  //loses values of 0
 );
 
-//Plugin::log($_POST, "DEBUG", "POST");
+//$module->emDebug($_POST, "POST");
 
 // IF POST, PROCESS "SUBMISSION"
 if (!empty($_POST['search_participant'])) {
 
     //for security reasons, if either name field is empty, return a fail with an alert
-    if (empty($fname) || empty($lname)) {
+    if (empty($fname)) {//} || empty($lname)) {
         $result = array(
             'result' => 'warn',
             'status' => 'incomplete',
             'msg' => 'Please enter names to complete the search.'
         );
     } else {
+        if (empty($cibsr_recs)) {
+            $records = $module->getSearchArray();
+            $cibsr_recs = $records;
+        }
+
+        //use the fuse search
+        $fuse = new \Fuse\Fuse($cibsr_recs, $options);
+
+        $module->emLog("SEARCH TERM ".$fname . ' by '. USERID .  $_SERVER['WEBAUTH_USER']);
+        //$fuse_result = $fuse->search("'".$fname."'");
+        $fuse_result = $fuse->search($fname);
+        //$fuse_result = $fuse->search('hannah henderson');
+
+        //$module->emDebug("FUSE SEARCH RECS: ", $fuse_result);
+
+        //limit it to search scores less than 0.3
+        $search_results = array();
+
+        //present the top 10
+
+        $i = 0;
+        foreach ($fuse_result as $k) {
+            if ($i >10) {
+                break;
+            }
+
+            if ($k['score'] < 0.2) {
+                $k['item']['score'] = $k['score'];
+                //$search_results[$k['item']['cibsr_id']] = $k['item'];
+                $search_results[] = $k['item'];
+                $i++;
+            }
+        }
+
+        //$module->emDebug("SEARCH RECS: ", $search_results);
 
         //check if this user exists already
-        $search_results = $module->searchPerson($data);
+        //$search_results = $module->searchPerson($data);
         //Plugin::log($search_results, "DEBUG", "SEARCH RESULTS FOUNDD");
-        //$module->emDebug("SEARCH RECS: ", $search_results);
 
         $result = array(
             'result' => 'success',
@@ -309,12 +368,14 @@ if (!empty($_POST['create_houseid'])) {
         <form method="POST" id="getstarted" action="">
             <div class="panel-body">
                 <div class="form-group row">
-
-                    <label for="name" class="control-label col-sm-1">Name:</label>
-                    <div class="col-sm-2">
-                        <input type="text" class="form-control" name="firstname" id="firstname" placeholder="First Name"
+                    <!--
+                    <label for="name" class="control-label col-sm-1">Search:</label>
+                    -->
+                    <div class="col-sm-6">
+                        <input type="text" class="form-control" name="firstname" id="firstname" placeholder="First Name Last Name"
                                value="<?php echo $fname ?>" autocomplete="off">
                     </div>
+                    <!--
                     <div class="col-sm-2">
                         <input type="text" class="form-control" name="lastname" id="lastname" placeholder="Last Name"
                                value="<?php echo $lname ?>" autocomplete="off">
@@ -339,7 +400,7 @@ if (!empty($_POST['create_houseid'])) {
                             <span class="glyphicon glyphicon-calendar"></span>
                         </span>
                     </div>
-
+-->
                 </div>
                 <div class="form-group">
                     <span class="control-label col-sm-12"></span>
@@ -553,7 +614,7 @@ if (!empty($_POST['create_houseid'])) {
 
                         if (data.result === 'success') {
                             console.log("returning from search");
-                            console.log("data lenght: ", data);
+                            console.log("data lenght: ", data.data.length);
                             if (btn === 'create_new_user') {
                                 console.log("redirecting to: ", data.link);
                                 $(location).attr('href', data.link);
@@ -566,6 +627,7 @@ if (!empty($_POST['create_houseid'])) {
                                 }
 
                                 if (data.data.length > 0) {
+
                                     $('#some_found').show();
                                     renderDataTable(data.data, 'search_table');
                                 } else {
@@ -656,30 +718,30 @@ if (!empty($_POST['create_houseid'])) {
             var id = $(this).data('id');
             var houseid = $(this).data('houseid');
 
-                //redirect to existing record to edit.
-                var formValues = {};
-                formValues['resume_existing'] = true;
-                formValues['id'] = id;
+            //redirect to existing record to edit.
+            var formValues = {};
+            formValues['resume_existing'] = true;
+            formValues['id'] = id;
 
-                $.ajax({ // create an AJAX call...
-                    data: formValues,
-                    method: "POST"
+            $.ajax({ // create an AJAX call...
+                data: formValues,
+                method: "POST"
+            })
+                .done(function (data) {
+                    console.log("RESUMING====: ", data);
+                    if (data.result === 'success') {
+                        console.log("redirecting to: ", data.link);
+                        $(location).attr('href', data.link);
+                    }
                 })
-                    .done(function (data) {
-                        console.log("RESUMING====: ", data);
-                        if (data.result === 'success') {
-                            console.log("redirecting to: ", data.link);
-                            $(location).attr('href', data.link);
-                        }
-                    })
-                    .fail(function (data) {
-                        console.log("DATA: ", data);
-                        alert("error:", data);
-                    })
-                    .always(function () {
-                    });
+                .fail(function (data) {
+                    console.log("DATA: ", data);
+                    alert("error:", data);
+                })
+                .always(function () {
+                });
 
-                return false;
+            return false;
 
 
 //            if (!houseid) {
@@ -798,6 +860,7 @@ if (!empty($_POST['create_houseid'])) {
                 { title: "Gender" },
                 { title: "Birth date" },
                 { title: "House ID" },
+                { title: "Match Score" },
                 { title: "Modify Existing Entry" }
             ],
             "columnDefs": [
@@ -806,7 +869,7 @@ if (!empty($_POST['create_houseid'])) {
                         let foo =  "<td><button type='button' class='btn btn-info select_id' data-id='"+row[0]+"'>"+row[0]+"</button></td>";
                         return foo;
                     },
-                    "targets": 6
+                    "targets": 7
                 },
                 {
                     "render": function ( data, type, row ) {

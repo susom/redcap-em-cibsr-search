@@ -12,7 +12,10 @@
       "institution": "Stanford University"
     }
   ],
-
+  "permissions": [
+    "hook_save_record",
+    "hook_survey_complete"
+  ],
   "links": {
 
     "project": [
@@ -20,11 +23,22 @@
         "name": "CIBSR Search",
         "icon": "gear",
         "url": "intake.php"
+      },
+      {
+        "name": "CIBSR Search (fuzzy)",
+        "icon": "gear",
+        "url": "intake_fuzzy.php"
       }
     ]
   },
 
   "system-settings": [
+    {
+      "key": "enable-system-debug-logging",
+      "name": "<b>Enable Debug Logging (system-wide)</b>",
+      "required": false,
+      "type": "checkbox"
+    }
   ],
 
   "project-settings": [

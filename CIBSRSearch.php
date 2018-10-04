@@ -41,6 +41,19 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
         //$this->mapURL($record,$instrument, $event_id);
     }
 
+    public function redcap_module_link_check_display($project_id, $link)
+    {
+        if (SUPER_USER) {
+            return $link;
+        }
+
+        if (!empty($project_id) && \REDCap::getUserRights(USERID)[USERID]['design']) {
+            return $link;
+        }
+
+        return $link;
+    }
+
     public function getSearchArray() {
         $fields = array(REDCap::getRecordIdField(),'first_name', 'last_name', 'sex', 'dob', 'house_id');
         $q = REDCap::getData('json', NULL,$fields);

@@ -13,8 +13,7 @@
     }
   ],
   "permissions": [
-    "hook_save_record",
-    "hook_survey_complete"
+    "hook_save_record"
   ],
   "links": {
 
@@ -23,15 +22,9 @@
         "name": "CIBSR Search",
         "icon": "gear",
         "url": "intake.php"
-      },
-      {
-        "name": "CIBSR Search (fuzzy)",
-        "icon": "gear",
-        "url": "intake_fuzzy.php"
       }
     ]
   },
-
   "system-settings": [
     {
       "key": "enable-system-debug-logging",
@@ -40,7 +33,12 @@
       "type": "checkbox"
     }
   ],
-
   "project-settings": [
+    {
+    "key": "enable-project-debug-logging",
+    "name": "<b>Enable Debug Logging</b>",
+    "required": false,
+    "type": "checkbox"
+    }
   ]
 }

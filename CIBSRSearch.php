@@ -3,13 +3,14 @@ namespace Stanford\CIBSRSearch;
 
 use REDCap;
 use Project;
-use Plugin;
-
 
 class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
     function hook_save_record($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance = 1)
     {
+
+        //$this->emLog("Record is $record and instrument is $instrument");
+
         $triggering_form = 'demographics';  //todo: hardcoded, change to config
         $from_field = 'family_sql_search';
         $to_field = 'house_id';
@@ -34,11 +35,6 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
             \REDCap::saveData('json',json_encode($changed));
         }
 
-    }
-
-    function hook_survey_complete() {
-        //Not necessary.  HOok save record also works for survey completion.
-        //$this->mapURL($record,$instrument, $event_id);
     }
 
     public function redcap_module_link_check_display($project_id, $link)
@@ -71,7 +67,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
             // Build array of fields and search filter
             $filters = array();
             foreach ($search_fields as $key => $v) {
-                //Plugin::log($key, "DEBUG", "KEY FOR ".$v. ' empty: ' . isset($v));
+                //$this->emLog($key, "DEBUG", "KEY FOR ".$v. ' empty: ' . isset($v));
                 if (isset($v)) {
                     if (($key == 'first_name') || ($key == 'last_name')) {
                         $filters[] = "contains ([" . $key . "],  '" . $v . "')";
@@ -89,7 +85,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
         }
 
-        Plugin::log($filter, "Filter");
+        $this->emLog($filter, "Filter");
 
         //which fields do we want returned
         $get_data = array_keys($search_fields);
@@ -98,7 +94,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
         //also add the Household ID so they can see its status
         $get_data[] = 'house_id';
 
-        //Plugin::log($get_data, "DEBUG", "GET DATA");
+        //$this->emLog($get_data, "DEBUG", "GET DATA");
         // Load the clinicians
         $q = REDCap::getData('json', NULL,$get_data, NULL, NULL, FALSE, FALSE, FALSE, $filter);
         $records = json_decode($q, true);
@@ -107,34 +103,35 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
     }
 
 
-    public static function getNextHouseId($pid, $id_field, $event_id, $prefix = '', $padding = false) {
-        Plugin::log($id_field, "DEBUG", "looking for event: ".$event_id . " in pid: " .$pid);
+    public function getNextHouseId($pid, $id_field, $event_id, $prefix = '', $padding = false) {
+        $this->emLog($id_field, "DEBUG", "looking for event: ".$event_id . " in pid: " .$pid);
 
         $q = REDCap::getData($pid,'array',NULL,array($id_field), $event_id);
-        //Plugin::log($q, "DEBUG", "Found records in project $pid using $id_field");
+        //$this->emLog($q, "DEBUG", "Found records in project $pid using $id_field");
 
         $house_ids = array();
         foreach ($q as $event_ids)
         {
             foreach ($event_ids as $candidate)
             {
-                //Plugin::log($candidate, "DEBUG", "candidate is ". current($candidate));
+                //$this->emLog($candidate, "DEBUG", "candidate is ". current($candidate));
                 $house_ids[] = current($candidate);
             }
         }
 
-        //Plugin::log($house_ids, "DEBUG", "MAX IS ". max($house_ids));
+        //$this->emLog($house_ids, "DEBUG", "MAX IS ". max($house_ids));
         return max($house_ids) + 1;
         
     }
 
-    public static function getNextId($pid, $id_field, $event_id, $prefix = '', $padding = false) {
-        $thisProj = new Project($pid);
+    public function getNextId($pid, $id_field, $event_id, $prefix = '', $padding = false) {
+
+        $this->Proj = new Project($pid);
         //$recordIdField = $thisProj->table_pk;
-        Plugin::log($id_field, "DEBUG", "looking for event: ".$event_id . " in pid: " .$pid);
+        $this->emLog($id_field, "DEBUG", "looking for event: ".$event_id . " in pid: " .$pid);
         
         $q = REDCap::getData($pid,'array',NULL,array($id_field), $event_id);
-        //Plugin::log($q, "DEBUG", "Found records in project $pid using $id_field");
+        //$this->emLog($q, "DEBUG", "Found records in project $pid using $id_field");
 
         $i = 1;
         do {
@@ -143,23 +140,23 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
                 // make sure we haven't exceeded padding, pad of 2 means
                 $max = 10^$padding;
                 if ($i >= $max) {
-                    Plugin::log("Error - $i exceeds max of $max permitted by padding of $padding characters");
+                    $this->emLog("Error - $i exceeds max of $max permitted by padding of $padding characters");
                     return false;
                 }
                 $id = str_pad($i, $padding, "0", STR_PAD_LEFT);
-                Plugin::log("Padded to $padding for $i is $id");
+                $this->emLog("Padded to $padding for $i is $id");
             } else {
                 $id = $i;
             }
 
             // Add the prefix
             $id = $prefix . $id;
-            //Plugin::log("Prefixed id for $i is $id");
+            //$this->emLog("Prefixed id for $i is $id");
 
             $i++;
         } while (!empty($q[$id][$event_id][$id_field]));
 
-        Plugin::log("Next ID in project $pid for field $id_field is $id");
+        $this->emLog("Next ID in project $pid for field $id_field is $id");
         return $id;
     }
 
@@ -243,15 +240,15 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
                     case "sex":
                         switch ($this_col) {
                             case "0":
-                                //Plugin::log($this_col, "DEBUG", "PICKING MALE for ".$this_id);
+                                //$this->emLog($this_col, "DEBUG", "PICKING MALE for ".$this_id);
                                 $rows .= '<td>Male</td>';
                                 break;
                             case "1" :
-                                //Plugin::log($this_col, "DEBUG", "PICKING FEMALE for " .$this_id);
+                                //$this->emLog($this_col, "DEBUG", "PICKING FEMALE for " .$this_id);
                                 $rows .= '<td>Female</td>';
                                 break;
                             case "2" :
-                                //Plugin::log($this_col, "DEBUG", "PICKING PHANTOM for ".$this_id);
+                                //$this->emLog($this_col, "DEBUG", "PICKING PHANTOM for ".$this_id);
                                 $rows .= '<td>Phantom</td>';
                                 break;
                             default:
@@ -274,10 +271,10 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
     public function setNewUser($data) {
         global $Proj;
-        //Plugin::log($data, "DEBUG", "DATA: : : Saving New User". $this->config );
+        //$this->emLog($data, "DEBUG", "DATA: : : Saving New User". $this->config );
         //save data from the new user login page
         //create new record so get a new id
-        $next_id = self::getNextId($Proj->project_id, REDCap::getRecordIdField(),$Proj->firstEventId);
+        $next_id = $this->getNextId($Proj->project_id, REDCap::getRecordIdField(),$Proj->firstEventId);
 
         $data[REDCap::getRecordIdField()] = $next_id;
 
@@ -285,7 +282,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
         //if save was a success, return the new id
         if (!empty($q['errors'])) {
-            Plugin::log("Errors in " . __FUNCTION__ . ": data=" . json_encode($data) . " / Response=" . json_encode($q), "ERROR");
+            $this->emLog("Errors in " . __FUNCTION__ . ": data=" . json_encode($data) . " / Response=" . json_encode($q), "ERROR");
             return false;
         } else {
             return $next_id;

@@ -120,7 +120,7 @@ if (!empty($_POST['search_participant'])) {
 
         //check if this user exists already
         //$search_results = $module->searchPerson($data);
-        //Plugin::log($search_results, "DEBUG", "SEARCH RESULTS FOUNDD");
+        //$module->emLog($search_results, "DEBUG", "SEARCH RESULTS FOUNDD");
 
         $result = array(
             'result' => 'success',
@@ -136,11 +136,11 @@ if (!empty($_POST['search_participant'])) {
 }
 
 if (!empty($_POST['create_new_user'])) {
-    Plugin::log($_POST, "DEBUG", "CREATE NEW USER");
+    $module->emLog($_POST, "DEBUG", "CREATE NEW USER");
 
     //saveData into new record
     $next_id = $module->setNewUser($data);
-    Plugin::log($next_id, "DEBUG", "NEXT_ID ");
+    $module->emLog($next_id, "DEBUG", "NEXT_ID ");
 
     //check if household id is populated
     //if not populated then present screen to
@@ -150,7 +150,7 @@ if (!empty($_POST['create_new_user'])) {
         $instrument = 'demographics';  //todo: hardcoded?
         $survey_link = REDCap::getSurveyLink($next_id, $instrument);
 
-        Plugin::log($survey_link, "DEBUG", "SURVEY_LINK: " . $next_id . "in instrument" . $instrument);
+        $module->emLog($survey_link, "DEBUG", "SURVEY_LINK: " . $next_id . "in instrument" . $instrument);
 
         $result = array('result' => 'success',
                         'link' => $survey_link);
@@ -171,7 +171,7 @@ if (!empty($_POST['resume_existing'])) {
         $instrument = 'demographics';  //todo: hardcoded?
         $survey_link = REDCap::getSurveyLink($id, $instrument);
 
-        Plugin::log($survey_link, "DEBUG", "Redirecting to SURVEY_LINK: " . $id . "in instrument " . $instrument);
+        $module->emLog($survey_link, "DEBUG", "Redirecting to SURVEY_LINK: " . $id . "in instrument " . $instrument);
         //redirect to filtering survey
 
         $result = array(
@@ -206,13 +206,13 @@ if (!empty($_POST['save'])) {
     if (!$cibsr_id) {
         //probably coming in from Create New, so create new ID
         $cibsr_id = $module->setNewUser($data);
-        Plugin::log($cibsr_id, "DEBUG", "Created new cibsr");
+        $module->emLog($cibsr_id, "DEBUG", "Created new cibsr");
     }
 
     //create houseid if no houseid
     if (!$houseid) {
-        $houseid = CIBSRSearch::getNextHouseId($project_id, 'house_id', $Proj->firstEventId);
-        Plugin::log($houseid, "DEBUG", "CREATED NEW HOUSE ID");
+        $houseid = $module->getNextHouseId($project_id, 'house_id', $Proj->firstEventId);
+        $module->emLog($houseid, "DEBUG", "CREATED NEW HOUSE ID");
     }
     $data['house_id'] = $houseid;
 
@@ -221,13 +221,13 @@ if (!empty($_POST['save'])) {
     if ($cibsr_id ) {
         $data['cibsr_id'] = $cibsr_id;
 
-        Plugin::log($data, "DEBUG", "Saving this data in REDCap ");
+        $module->emLog($data, "DEBUG", "Saving this data in REDCap ");
         $houseid_status = REDCap::saveData('json', json_encode(array($data)));
 
         //setup the survey
         $instrument = 'demographics';  //todo: hardcoded?
         $survey_link = REDCap::getSurveyLink($cibsr_id, $instrument);
-        Plugin::log($survey_link, "DEBUG", "SURVEY_LINK: ID: " . $cibsr_id . " in instrument: " . $instrument);
+        $module->emLog($survey_link, "DEBUG", "SURVEY_LINK: ID: " . $cibsr_id . " in instrument: " . $instrument);
 
         $result = array('result' => 'success',
             'status' => $houseid_status,
@@ -237,13 +237,13 @@ if (!empty($_POST['save'])) {
         exit();
 
     } else {
-        Plugin::log($cibsr_id, "ERROR", "Something bad happend with  cibsr id");
+        $module->emLog($cibsr_id, "ERROR", "Something bad happend with  cibsr id");
     }
 }
 
 if (!empty($_POST['search_family'])) {
     //check if this user exists already
-    Plugin::log($data, "DEBUG", "SEARCHING FOR FAMILY");
+    $module->emLog($data, "DEBUG", "SEARCHING FOR FAMILY");
 
 //for security reasons, if either name field is empty, return a fail with an alert
     if (empty($fname) || empty($lname)) {
@@ -257,7 +257,7 @@ if (!empty($_POST['search_family'])) {
 
         //for this search, only return values which have houseIds
         $h_search_results = $module->searchPerson($data, "house_id");
-        //Plugin::log($h_search_results, "DEBUG", "SEARCH RESULTS FOUNDD");
+        //$module->emLog($h_search_results, "DEBUG", "SEARCH RESULTS FOUNDD");
 
         $result = array(
             'result' => 'success',
@@ -277,9 +277,9 @@ if (!empty($_POST['create_houseid'])) {
     $cibsr_id = (!empty($_POST["modal_cibsr_id"]) ? $_POST["modal_cibsr_id"] : null);
 
     //get new house_id
-    //$next_id = self::getNextId($Proj->project_id, REDCap::getRecordIdField(),$Proj->firstEventId);
-    $houseid = CIBSRSearch::getNextHouseId($project_id, 'house_id', $Proj->firstEventId);
-    Plugin::log($houseid, "DEBUG", "NEW HOUSE ID");
+    //$next_id = $module->getNextId($Proj->project_id, REDCap::getRecordIdField(),$Proj->firstEventId);
+    $houseid = $module->getNextHouseId($project_id, 'house_id', $Proj->firstEventId);
+    $module->emLog($houseid, "DEBUG", "NEW HOUSE ID");
 
 
     if (!$cibsr_id) {
@@ -302,7 +302,7 @@ if (!empty($_POST['create_houseid'])) {
             'house_id' => $houseid);
     }
 
-    Plugin::log($data, "DEBUG", "ABOUT TO SAVE THIS DATA FOR HOUSE ID");
+    $module->emLog($data, "DEBUG", "ABOUT TO SAVE THIS DATA FOR HOUSE ID");
 
     $houseid_status = REDCap::saveData('json', json_encode(array($data)));
 
@@ -310,7 +310,7 @@ if (!empty($_POST['create_houseid'])) {
     $instrument = 'demographics';  //todo: hardcoded?
     $survey_link = REDCap::getSurveyLink($cibsr_id, $instrument);
 
-    //Plugin::log($survey_link, "DEBUG", "SURVEY_LINK: " . $cibsr_id . "in instrument" . $instrument);
+    //$module->emLog($survey_link, "DEBUG", "SURVEY_LINK: " . $cibsr_id . "in instrument" . $instrument);
 
     $result = array('result' => 'success',
             'status' => $houseid_status,

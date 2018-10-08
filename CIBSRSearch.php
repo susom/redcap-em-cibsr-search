@@ -138,7 +138,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
             // Make a padded number
             if ($padding) {
                 // make sure we haven't exceeded padding, pad of 2 means
-                $max = 10^$padding;
+                $max = 10**$padding;
                 if ($i >= $max) {
                     $this->emLog("Error - $i exceeds max of $max permitted by padding of $padding characters");
                     return false;

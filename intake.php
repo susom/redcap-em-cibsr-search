@@ -4,7 +4,11 @@ namespace Stanford\CIBSRSearch;
 
 use REDCap;
 
-require_once $module->getModulePath().'/vendor/autoload.php';
+//require_once $module->getModulePath().'/vendor/autoload.php';
+
+//get user id
+$user_id = strtolower(USERID);
+$module->emLog("Logged in as $user_id ");
 
 $search_results = null;
 $h_search_results = null;
@@ -16,6 +20,13 @@ $fname = (!empty($_POST["firstname"]) ? $_POST["firstname"] : null);
 $lname = (!empty($_POST["lastname"]) ? $_POST["lastname"] : null);
 $dob = (!empty($_POST["dob"]) ? $_POST["dob"] : null);
 $gender = (!empty($_POST["sex"]) ? $_POST["sex"] : null);
+
+$min_letter_first_name = $module->getProjectSetting('first_name_minimum_letters');
+$min_letter_last_name = $module->getProjectSetting('last_name_minimum_letters');
+
+//if not set, use 0
+$min_letter_first_name = $min_letter_first_name == '' ? 1 : $min_letter_first_name;
+$min_letter_last_name = $min_letter_last_name == '' ? 1 : $min_letter_last_name;
 
 $data = array(
     "first_name" => $fname,
@@ -33,6 +44,18 @@ if (!empty($_POST['search_participant'])) {
             'result' => 'warn',
             'status' => 'incomplete',
             'msg' => 'Please enter names to complete the search.'
+        );
+    } elseif (strlen($fname) < $min_letter_first_name) {
+        $result = array(
+            'result' => 'warn',
+            'status' => 'incomplete',
+            'msg' => 'Minimum number of '.$min_letter_first_name.' letters required for first name to complete the search.'
+        );
+    } elseif (strlen($lname) < $min_letter_last_name) {
+        $result = array(
+            'result' => 'warn',
+            'status' => 'incomplete',
+            'msg' => 'Minimum number of '.$min_letter_last_name.' letters required for last name to complete the search.'
         );
     } else {
 
@@ -54,136 +77,47 @@ if (!empty($_POST['search_participant'])) {
 
 }
 
-if (!empty($_POST['create_new_user'])) {
-    $module->emLog($_POST, "DEBUG", "CREATE NEW USER");
+if ((!empty($_POST['create_new_user'])) OR (!empty($_POST['resume_existing'])))  {
 
-    //saveData into new record
-    $next_id = $module->setNewUser($data);
-    $module->emLog($next_id, "DEBUG", "NEXT_ID ");
+    if (!empty($_POST['create_new_user'])) {
+        //saveData into new record
+        $id = $module->setNewUser($data);
+        $msg = " created new record:  ";
+    }
+    if (!empty ($_POST['resume_existing'])) {
+        $id = (!empty($_POST["id"]) ? $_POST["id"] : null);
+        $msg = " redirected to existing survey: ";
+    }
 
-    //check if household id is populated
-    //if not populated then present screen to
-
-    if ($next_id) {
+    if ($id) {
         //get survey link for the next instrument
-        $instrument = 'demographics';  //todo: hardcoded?
-        $survey_link = REDCap::getSurveyLink($next_id, $instrument);
+        $instrument = $module->getProjectSetting('survey');  //'demographics';
 
-        $module->emLog($survey_link, "DEBUG", "SURVEY_LINK: " . $next_id . "in instrument" . $instrument);
+        if (empty($instrument)) {
+            $result = array(
+                'result' => 'warn',
+                'status' => 'incomplete',
+                'msg' => 'The survey has not been set in the EM configuration');
+        } else {
+            $survey_link = REDCap::getSurveyLink($id, $instrument);
 
-        $result = array('result' => 'success',
-                        'link' => $survey_link);
+            $module->emLog(USERID . $msg . $survey_link . " Record ID : " . $id . " in instrument : " . $instrument);
+
+            $result = array(
+                'result' => 'success',
+                'link' => $survey_link);
+        }
         header('Content-Type: application/json');
         print json_encode($result);
         exit();
 
     } else {
         //the record was not saved, report error to REDCap logging?
+        $module->emError("MISSING ID FOR NEXT SURVEY!");
 
     }
 }
 
-if (!empty($_POST['resume_existing'])) {
-    $id = (!empty($_POST["id"]) ? $_POST["id"] : null);
-
-    if ($id) {
-        $instrument = 'demographics';  //todo: hardcoded?
-        $survey_link = REDCap::getSurveyLink($id, $instrument);
-
-        $module->emLog($survey_link, "DEBUG", "Redirecting to SURVEY_LINK: " . $id . "in instrument " . $instrument);
-        //redirect to filtering survey
-
-        $result = array(
-            'result' => 'success',
-            'link' => $survey_link);
-
-        header('Content-Type: application/json');
-        print json_encode($result);
-        exit();
-    }
-}
-
-if (!empty($_POST['save'])) {
-    $module->emLog("SAVING with POST: ", $_POST);
-    $cibsr_id = (!empty($_POST["cibsr_id"]) ? $_POST["cibsr_id"] : null);
-    $houseid = (!empty($_POST["houseid"]) ? $_POST["houseid"] : null);
-    $dob_mdy = (!empty($_POST["modal_dob"]) ? $_POST["modal_dob"] : null);
-
-    //save post data to data save array
-    $data = array(
-        'first_name' => (!empty($_POST["modal_firstname"]) ? $_POST["modal_firstname"] : null),
-        'last_name' => (!empty($_POST["modal_lastname"]) ? $_POST["modal_lastname"] : null),
-    );
-
-    //if $cibsr_id is null, then it's a new record. create a new id
-    //probably coming in from the new CIBSRID
-    if (!$cibsr_id) {
-        //probably coming in from Create New, so create new ID
-        $cibsr_id = $module->setNewUser($data);
-        $module->emLog($cibsr_id, "DEBUG", "Created new cibsr");
-    }
-
-    //create houseid if no houseid
-    if (!$houseid) {
-        $houseid = $module->getNextHouseId($project_id, 'house_id', $Proj->firstEventId);
-        $module->emLog($houseid, "DEBUG", "CREATED NEW HOUSE ID");
-    }
-    $data['house_id'] = $houseid;
-
-    //only fail if cibsr is missing
-    //if ($cibsr_id && $houseid) {
-    if ($cibsr_id ) {
-        $data['cibsr_id'] = $cibsr_id;
-
-        $module->emLog($data, "DEBUG", "Saving this data in REDCap ");
-        $houseid_status = REDCap::saveData('json', json_encode(array($data)));
-
-        //setup the survey
-        $instrument = 'demographics';  //todo: hardcoded?
-        $survey_link = REDCap::getSurveyLink($cibsr_id, $instrument);
-        $module->emLog($survey_link, "DEBUG", "SURVEY_LINK: ID: " . $cibsr_id . " in instrument: " . $instrument);
-
-        $result = array('result' => 'success',
-            'status' => $houseid_status,
-            'link' => $survey_link);
-        header('Content-Type: application/json');
-        print json_encode($result);
-        exit();
-
-    } else {
-        $module->emLog($cibsr_id, "ERROR", "Something bad happend with  cibsr id");
-    }
-}
-
-//todo: delete this
-if (!empty($_POST['search_family'])) {
-    //check if this user exists already
-    $module->emLog($data, "DEBUG", "SEARCHING FOR FAMILY");
-
-//for security reasons, if either name field is empty, return a fail with an alert
-    if (empty($fname) || empty($lname)) {
-
-        $result = array(
-            'result' => 'warn',
-            'status' => 'incomplete',
-            'msg' => 'Please enter names to complete the search.'
-        );
-    } else {
-
-        //for this search, only return values which have houseIds
-        $h_search_results = $module->searchPerson($data, "house_id");
-        //$module->emLog($h_search_results, "DEBUG", "SEARCH RESULTS FOUNDD");
-
-        $result = array(
-            'result' => 'success',
-            'data' => $h_search_results);
-
-    }
-
-    header('Content-Type: application/json');
-    print json_encode($result);
-    exit();
-}
 
 ?>
 <!DOCTYPE html>
@@ -231,11 +165,8 @@ if (!empty($_POST['search_family'])) {
                 <div class="form-group">
                     <span class="control-label col-sm-12"></span>
                     <div class="col-sm-12">
-                        <button id="search_participant" type="submit" class="btn btn-primary search"
-                                name="search_participant" value="true">
-                            Search
-                        </button>
-                        <button class="btn btn-primary" type="submit" name="create_new_user" id="create_new_user"value="true">Create a new CIBSR ID</button>
+                        <button class="btn btn-primary search" id="search_participant" type="submit" name="search_participant" value="true">Search</button>
+                        <button class="btn btn-primary" id="create_new_user" type="submit" name="create_new_user" value="true">Create a new CIBSR ID</button>
                     </div>
                 </div>
             </div>
@@ -254,7 +185,7 @@ if (!empty($_POST['search_family'])) {
         </div>
         <div style="display:none;" id="none_found">
             <p>
-            There were no persons found with the specified search criteria.
+            There was no one found with the specified search criteria.
             </p>
         </div>
 
@@ -279,111 +210,94 @@ if (!empty($_POST['search_family'])) {
         // turn off cached entries
         $("form :input").attr("autocomplete", "off");
 
-        $('#getstarted').submit(function () { // catch the form's submit event
+        //bind button for create new user
+        $('#create_new_user').on('click', function() {
+
+            console.log("clicked create_new_user");
+
             $('#some_found').hide();
             $('#none_found').hide();
 
-            let btn = $(document.activeElement).attr('name');
+            let formValues = {
+                "firstname" : $("input#firstname.form-control").val(),
+                "lastname" : $("input#lastname.form-control").val(),
+                "create_new_user" : true
+            };
 
-            let formValues = {};
+            $.ajax({ // create an AJAX call...
+                data: formValues, // get the form data
+                method: "POST"
+            })
+                .done(function (data) {
+                    console.log("DONE CREATE_NEW_USER", data);
 
-            $.each($(this).serializeArray(), function (i, field) {
-                //console.log("adding to formValue: ",field.name, " with value ", field.value);
-                formValues[field.name] = field.value;
+                    if (data.result === 'success') {
+                        console.log("redirecting to: ", data.link);
+                        $(location).attr('href', data.link);
 
-                //save to modal form to use for new id case
-                $("#modal_"+field.name).val(field.value);
-            });
+                    } else if (data.result === 'warn') {
+                        alert(data.msg);
+                    }
 
-            formValues[btn] = true;
-
-            if (btn === 'create_new_user') {
-                $.ajax({ // create an AJAX call...
-                    //data: $(this).serialize(), // get the form data
-                    data: formValues, // get the form data
-                    method: "POST"
                 })
-                    .done(function (data) {
-                        console.log("DONE CREATE_NEW_USER", data);
+                .fail(function (data) {
+                    console.log("DATA: ", data);
+                    alert("error:", data);
+                })
+                .always(function () {
+                });
 
-                        if (data.result === 'success') {
-                            if (btn === 'create_new_user') {
-                                console.log("redirecting to: ", data.link);
-                                $(location).attr('href', data.link);
-                            }
+            return false;
 
-                            if (btn === 'search_participant') {
-                                if ($.fn.DataTable.isDataTable('#search_table')) {
-                                    $('#search_table').dataTable().fnClearTable();
-                                    $('#search_table').dataTable().fnDestroy();
-                                }
+        });
 
-                                if (data.data.length > 0) {
-                                    $('#some_found').show();
-                                    renderDataTable(data.data, 'search_table');
-                                } else {
-                                    $('#none_found').show();
-                                }
 
-                            }
+        //bind button for create new user
+        $('#search_participant').on('click', function() {
+            console.log("clicked search_participant");
+            console.log("this", $(this));
 
-                        } else if (data.result === 'warn') {
-                            alert(data.msg);
+            $('#some_found').hide();
+            $('#none_found').hide();
+
+            let formValues = {
+                "firstname" : $("input#firstname.form-control").val(),
+                "lastname" : $("input#lastname.form-control").val(),
+                "search_participant" : true
+            };
+
+            $.ajax({ // create an AJAX call...
+                //data: $(this).serialize(), // get the form data
+                data: formValues, // get the form data
+                method: "POST"
+            })
+                .done(function (data) {
+                    if (data.result === 'success') {
+
+                        if ($.fn.DataTable.isDataTable('#search_table')) {
+                            $('#search_table').dataTable().fnClearTable();
+                            $('#search_table').dataTable().fnDestroy();
                         }
 
-                    })
-                    .fail(function (data) {
-                        console.log("DATA: ", data);
-                        alert("error:", data);
-                    })
-                    .always(function () {
-                    });
-
-                return false;
-            }
-
-
-            if (btn === 'search_participant') {
-                $.ajax({ // create an AJAX call...
-                    //data: $(this).serialize(), // get the form data
-                    data: formValues, // get the form data
-                    method: "POST"
+                            if (data.data.length > 0) {
+                                $('#some_found').show();
+                                renderDataTable(data.data, 'search_table');
+                            } else {
+                                $('#none_found').show();
+                            }
+                    } else if (data.result === 'warn') {
+                        alert(data.msg);
+                    }
                 })
-                    .done(function (data) {
-                        if (data.result === 'success') {
-                            console.log("returning from search");
-                            console.log("data length: ", data);
-                            if (btn === 'create_new_user') {
-                                console.log("redirecting to: ", data.link);
-                                $(location).attr('href', data.link);
-                            }
+                .fail(function (data) {
+                    console.log("DATA: ", data);
+                    alert("error:", data);
+                })
+                .always(function () {
+                });
 
-                            if (btn === 'search_participant') {
-                                if ($.fn.DataTable.isDataTable('#search_table')) {
-                                    $('#search_table').dataTable().fnClearTable();
-                                    $('#search_table').dataTable().fnDestroy();
-                                }
+            return false;
 
-                                if (data.data.length > 0) {
-                                    $('#some_found').show();
-                                    renderDataTable(data.data, 'search_table');
-                                } else {
-                                    $('#none_found').show();
-                                }
-                            }
-                        } else if (data.result === 'warn') {
-                            alert(data.msg);
-                        }
-                    })
-                    .fail(function (data) {
-                        console.log("DATA: ", data);
-                        alert("error:", data);
-                    })
-                    .always(function () {
-                    });
-
-                return false;
-            }
 
         });
 
@@ -409,6 +323,8 @@ if (!empty($_POST['search_family'])) {
                     if (data.result === 'success') {
                         console.log("redirecting to: ", data.link);
                         $(location).attr('href', data.link);
+                    } else if (data.result === 'warn') {
+                        alert(data.msg);
                     }
                 })
                 .fail(function (data) {
@@ -474,52 +390,6 @@ if (!empty($_POST['search_family'])) {
         } );
     }
 
-    function renderFamilyDataTable(tbl, id, formVal) {
-        result = tbl.map(Object.values);
 
-        $('#'+id).DataTable( {
-            data: result,
-            searching: false,
-            paging: false,
-            info: false,
-            columns: [
-                { title: "CIBSR ID"},
-                { title: "First Name" },
-                { title: "Last Name" },
-                { title: "Gender" },
-                { title: "Birth date" },
-                { title: "Select House ID" }
-            ],
-            "columnDefs": [
-                {
-                    "render": function ( data, type, row ) {
-                        let foo =  "<td><button type='button' class='btn btn-info select_id' data-id='' data-firstname='"+formVal.modal_firstname+"' data-lastname='"+formVal.modal_lastname+"' data-dob='"+formVal.modal_dob+"' data-sex='"+formVal.modal_sex+"' data-houseid='"+row[5]+"'>"+data+"</button></td>";
-                        return foo;
-                    },
-                    "targets": 5
-                },
-                {
-                    "render": function ( data, type, row ) {
-                        switch(data) {
-                            case "0":
-                                gender = 'Male';
-                                break;
-                            case "1":
-                                gender = 'Female';
-                                break;
-                            case "2":
-                                gender = 'Phantom';
-                                break;
-                            default:
-                                gender = data;
-                        }
-                        return gender;
-                    },
-                    "targets": 3
-                },
-                { "visible": true,  "targets": [ 2 ] }
-            ]
-        } );
-    }
 
 </script>

@@ -22,6 +22,11 @@
         "name": "CIBSR Search",
         "icon": "gear",
         "url": "intake.php"
+      },
+      {
+        "name": "Get CIBSR Search Link",
+        "icon": "gear",
+        "url": "GetCIBSRSearchLink.php"
       }
     ]
   },

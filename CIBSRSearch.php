@@ -11,9 +11,9 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
         //$this->emLog("Record is $record and instrument is $instrument");
 
-        $triggering_form = 'demographics';  //todo: hardcoded, change to config
-        $from_field = 'family_sql_search';
-        $to_field = 'house_id';
+        $triggering_form = $this->getProjectSetting('survey');  //'demographics';
+        $from_field = $this->getProjectSetting('family-sql-search');
+        $to_field = $this->getProjectSetting('house-id');
 
         $changed = array();
 
@@ -37,6 +37,14 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
     }
 
+    /**
+     *
+     * Need to override the EM method to allow display of EM link
+     *
+     * @param $project_id
+     * @param $link
+     * @return mixed
+     */
     public function redcap_module_link_check_display($project_id, $link)
     {
         if (SUPER_USER) {
@@ -85,7 +93,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
         }
 
-        $this->emLog($filter, "Filter");
+        $this->emLog(USERID . " searched for ".$filter);
 
         //which fields do we want returned
         $get_data = array_keys($search_fields);
@@ -128,8 +136,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
         $this->Proj = new Project($pid);
         //$recordIdField = $thisProj->table_pk;
-        $this->emLog($id_field, "DEBUG", "looking for event: ".$event_id . " in pid: " .$pid);
-        
+
         $q = REDCap::getData($pid,'array',NULL,array($id_field), $event_id);
         //$this->emLog($q, "DEBUG", "Found records in project $pid using $id_field");
 
@@ -144,7 +151,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
                     return false;
                 }
                 $id = str_pad($i, $padding, "0", STR_PAD_LEFT);
-                $this->emLog("Padded to $padding for $i is $id");
+                //$this->emLog("Padded to $padding for $i is $id");
             } else {
                 $id = $i;
             }
@@ -156,7 +163,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
             $i++;
         } while (!empty($q[$id][$event_id][$id_field]));
 
-        $this->emLog("Next ID in project $pid for field $id_field is $id");
+        //$this->emLog(USERID . ": Next ID in project $pid for field $id_field is $id");
         return $id;
     }
 
@@ -220,7 +227,6 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
 
     function renderSummaryTableRows($row_data = array()) {
-        global $module;
 
         $this_id = null;
 

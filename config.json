@@ -39,6 +39,37 @@
     "name": "<b>Enable Debug Logging</b>",
     "required": false,
     "type": "checkbox"
+    },
+    {
+      "key": "first_name_minimum_letters",
+      "name": "<b>Minimum number of letters required for first name search</b>",
+      "required": false,
+      "type": "text"
+    },
+    {
+      "key": "last_name_minimum_letters",
+      "name": "<b>Minimum number of letters required for last name search</b>",
+      "required": false,
+      "type": "text"
+    },
+    {
+      "key": "survey",
+      "name": "<b>Name of the survey to edit</b>",
+      "required": false,
+      "type": "form-list"
+    },
+    {
+      "key": "family-sql-search",
+      "name": "<b>Name of SQL field from which to copy selected house id</b>",
+      "required": false,
+      "type": "field-list"
+    },
+    {
+      "key": "house-id",
+      "name": "<b>Name of field to which to copy selected house id</b>",
+      "required": false,
+      "type": "field-list"
     }
+
   ]
 }

@@ -6,10 +6,11 @@ use Project;
 
 class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
+
+    /** TURN OFF THIS FEATURE FOR NOW
     function hook_save_record($project_id, $record = NULL, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance = 1)
     {
-
-        //$this->emLog("Record is $record and instrument is $instrument");
+    //$this->emLog("Record is $record and instrument is $instrument");
 
         $triggering_form = $this->getProjectSetting('survey');  //'demographics';
         $from_field = $this->getProjectSetting('family-sql-search');
@@ -18,9 +19,16 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
         $changed = array();
 
         if ($instrument = $triggering_form) {
-            $q = \REDCap::getData('json',$record,array(\REDCap::getRecordIdField(),$from_field));
+            $q = \REDCap::getData('json',$record,array(\REDCap::getRecordIdField(),$from_field, $to_field));
             $records = json_decode($q,true);
             //$this->emDebug($records);
+
+            $to_entry = $records[0][$to_field];
+            //if $to_Field has values, then don't overwrite
+            if (strlen($to_entry) > 0) {
+                //$this->emDebug($to_entry. " TO FIELD is OCCUPIED " . strlen($to_entry));
+                return;
+            }
 
             //switch out the from_field to the to_field
             foreach ($records as $record) {
@@ -34,8 +42,9 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
             //save back to the record
             \REDCap::saveData('json',json_encode($changed));
         }
-
     }
+    */
+
 
     /**
      *

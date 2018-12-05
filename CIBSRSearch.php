@@ -141,6 +141,27 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
         
     }
 
+    /**
+     * New version of getNextId to get one up from the highest existing value.
+     *
+     * @param $pid
+     * @param $id_field
+     * @param $event_id
+     * @return int|mixed
+     * @throws \Exception
+     */
+    public function getNextHighestId($pid, $id_field, $event_id) {
+
+        $this->Proj = new Project($pid);
+        //$recordIdField = $thisProj->table_pk;
+
+        $q = REDCap::getData($pid,'array',NULL,array($id_field), $event_id);
+        //$this->emDebug($q, "DEBUG", "Found records in project $pid using $id_field");
+        $maxid = max(array_keys($q));
+        //$this->emDebug("MAX ID : ".$maxid);
+        return $maxid + 1;
+    }
+
     public function getNextId($pid, $id_field, $event_id, $prefix = '', $padding = false) {
 
         $this->Proj = new Project($pid);
@@ -289,7 +310,10 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
         //$this->emLog($data, "DEBUG", "DATA: : : Saving New User". $this->config );
         //save data from the new user login page
         //create new record so get a new id
-        $next_id = $this->getNextId($Proj->project_id, REDCap::getRecordIdField(),$Proj->firstEventId);
+        //$next_id = $this->getNextId($Proj->project_id, REDCap::getRecordIdField(),$Proj->firstEventId);
+
+        //get Next ID incrementing from the highest ID rather than the next available
+        $next_id = $this->getNextHighestId($Proj->project_id, REDCap::getRecordIdField(),$Proj->firstEventId);
 
         $data[REDCap::getRecordIdField()] = $next_id;
 

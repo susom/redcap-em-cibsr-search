@@ -45,6 +45,27 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
     }
     */
 
+    function redcap_survey_page($project_id, $record, $instrument, $event_id, $group_id, $survey_hash, $response_id, $repeat_instance)
+    {
+
+        $triggering_form = $this->getProjectSetting('survey');  //'demographics';
+
+        if ($instrument = $triggering_form) {
+            $next_house_id = $this->getNextHouseId($project_id, $this->getProjectSetting('house-id'),$Proj->firstEventId );
+            ?>
+            <script>
+                $(document).ready(function () {
+                    $(".hijack_house_id").text(function (index, text) {
+                        return text.replace("next id", "<?php echo $next_house_id;?>");
+                    });
+                });
+            </script>
+            <?php
+
+        }
+
+    }
+
 
     /**
      *
@@ -120,8 +141,8 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
     }
 
 
-    public function getNextHouseId($pid, $id_field, $event_id, $prefix = '', $padding = false) {
-        $this->emLog($id_field, "DEBUG", "looking for event: ".$event_id . " in pid: " .$pid);
+    public function getNextHouseId($pid, $id_field, $event_id) {
+        //$this->emDebug($id_field, "DEBUG", "looking for event: ".$event_id . " in pid: " .$pid);
 
         $q = REDCap::getData($pid,'array',NULL,array($id_field), $event_id);
         //$this->emLog($q, "DEBUG", "Found records in project $pid using $id_field");
@@ -132,7 +153,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
             foreach ($event_ids as $candidate)
             {
                 //$this->emLog($candidate, "DEBUG", "candidate is ". current($candidate));
-                $house_ids[] = current($candidate);
+                $house_ids[] = $candidate[$this->getProjectSetting('house-id')];
             }
         }
 

@@ -142,7 +142,37 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
     }
 
 
+    /**
+     * Using sql as the getData was very slow
+     *
+     * @param $pid
+     * @param $id_field
+     * @param $event_id
+     * @return bool|null
+     */
     public function getNextHouseId($pid, $id_field, $event_id) {
+         $sql = sprintf(
+             "select (max(cast(value as unsigned)) +1) from redcap_data where project_id = '%s'  and event_id ='%s' and field_name='%s'",
+            db_real_escape_string($pid),
+            db_real_escape_string($event_id),
+            db_real_escape_string($id_field)
+        );
+
+        $q = db_query($sql);
+        //$this->emDebug($sql, $q);
+        if (db_num_rows($q) < 1) {
+
+            $this->emError('Unable to find a valid house_id for $instrument.');
+            return null;
+        }
+
+        //$survey_id = db_result($q, 0, $id_field);
+        $survey_id = db_result($q, 0);
+        return $survey_id;
+    }
+
+
+    public function getNextHouseIdSlow($pid, $id_field, $event_id) {
         $this->emDebug($id_field. " looking for event: ". $event_id . " in pid: " .$pid);
 
         $params = array(

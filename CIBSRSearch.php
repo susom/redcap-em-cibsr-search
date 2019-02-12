@@ -48,7 +48,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
     public function redcap_survey_page($project_id, $record, $instrument, $event_id, $group_id, $survey_hash, $response_id, $repeat_instance)
     {
         $triggering_form = $this->getProjectSetting('survey');  //'demographics';
-        $this->emDebug($instrument . " VS " .$triggering_form );
+        //$this->emDebug($instrument . " VS " .$triggering_form );
         if ($instrument = $triggering_form) {
             $this->displayNextHouseID($project_id);
         }
@@ -58,7 +58,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
     public function redcap_data_entry_form($project_id, $record, $instrument, $event_id)
     {
         $triggering_form = $this->getProjectSetting('survey');  //'demographics';
-        $this->emDebug($instrument . " VS " .$triggering_form);
+        //$this->emDebug($instrument . " VS " .$triggering_form);
         if ($instrument = $triggering_form) {
             $this->displayNextHouseID($project_id);
         }
@@ -68,7 +68,7 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
 
     public function displayNextHouseID($project_id) {
         $next_house_id = $this->getNextHouseId($project_id, $this->getProjectSetting('house-id'), $this->getFirstEventId() );
-        $this->emDebug("NEXT ID IS " .$next_house_id);
+        //$this->emDebug("NEXT ID IS " .$next_house_id);
         ?>
         <script>
             $(document).ready(function () {

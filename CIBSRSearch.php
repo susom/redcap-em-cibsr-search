@@ -45,28 +45,39 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
     }
     */
 
-    function redcap_survey_page($project_id, $record, $instrument, $event_id, $group_id, $survey_hash, $response_id, $repeat_instance)
+    public function redcap_survey_page($project_id, $record, $instrument, $event_id, $group_id, $survey_hash, $response_id, $repeat_instance)
     {
         $triggering_form = $this->getProjectSetting('survey');  //'demographics';
 
-
         if ($instrument = $triggering_form) {
-
-            $next_house_id = $this->getNextHouseId($project_id, $this->getProjectSetting('house-id'), $this->getFirstEventId() );
-            ?>
-            <script>
-                $(document).ready(function () {
-                    $(".hijack_house_id").text(function (index, text) {
-                        return text.replace("next id", "<?php echo $next_house_id;?>");
-                    });
-                });
-            </script>
-            <?php
-
+            $this->displayNextHouseID($project_id);
         }
 
     }
 
+    public function redcap_data_entry_form($project_id, $record, $instrument) {
+        $triggering_form = $this->getProjectSetting('survey');  //'demographics';
+
+        if ($instrument = $triggering_form) {
+            $this->displayNextHouseID($project_id);
+        }
+
+    }
+
+
+    public function displayNextHouseID($project_id) {
+        $next_house_id = $this->getNextHouseId($project_id, $this->getProjectSetting('house-id'), $this->getFirstEventId() );
+
+        ?>
+        <script>
+            $(document).ready(function () {
+                $(".hijack_house_id").text(function (index, text) {
+                    return text.replace("next id", "<?php echo $next_house_id;?>");
+                });
+            });
+        </script>
+        <?php
+    }
 
     /**
      *

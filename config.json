@@ -14,8 +14,8 @@
   ],
   "permissions": [
     "hook_save_record",
-    "redcap_survey_page"
-
+    "redcap_survey_page",
+    "redcap_data_entry_form"
   ],
   "links": {
 

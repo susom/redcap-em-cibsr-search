@@ -163,8 +163,10 @@ class CIBSRSearch extends \ExternalModules\AbstractExternalModule {
      * @return bool|null
      */
     public function getNextHouseId($pid, $id_field, $event_id) {
+        $data_table = method_exists('\REDCap', 'getDataTable') ? \REDCap::getDataTable($pid) : "redcap_data";
+
          $sql = sprintf(
-             "select (max(cast(value as unsigned)) +1) from redcap_data where project_id = '%s'  and event_id ='%s' and field_name='%s'",
+             "select (max(cast(value as unsigned)) +1) from $data_table where project_id = '%s'  and event_id ='%s' and field_name='%s'",
             db_real_escape_string($pid),
             db_real_escape_string($event_id),
             db_real_escape_string($id_field)
